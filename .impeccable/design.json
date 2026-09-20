@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-20T00:00:00.000Z",
+  "title": "Design System: AK Studio",
+  "extensions": {
+    "colorMeta": {
+      "ink": {"role":"primary","displayName":"Studio Ink","canonical":"#111111","tonalRamp":["#111111","#292929","#424242","#5c5c5c","#777777","#a0a0a0","#d0d0d0","#f4f4f4"]},
+      "paper": {"role":"neutral","displayName":"Panel Paper","canonical":"#ffffff","tonalRamp":["#222222","#444444","#666666","#888888","#aaaaaa","#cccccc","#eeeeee","#ffffff"]},
+      "tempo": {"role":"primary","displayName":"Tempo Red","canonical":"#e23434","tonalRamp":["#351313","#5d1c1c","#862525","#af2c2c","#e23434","#ec6c6c","#f4aaaa","#fde7e7"]}
+    },
+    "breakpoints": [{"name":"mobile","value":"720px"},{"name":"tablet","value":"1050px"}],
+    "shadows": [{"name":"stage","value":"0 2px 8px rgba(0,0,0,0.13)","purpose":"Separates the video preview from the workspace."}]
+  },
+  "components": [
+    {"name":"Primary Button","kind":"button","refersTo":"button-primary","description":"Consequential editor action.","html":"<button class=\"ds-primary\">Exportar</button>","css":".ds-primary{height:34px;padding:0 14px;border:0;border-radius:7px;background:#111;color:#fff;font:600 12px sans-serif}.ds-primary:hover{background:#333}.ds-primary:focus-visible{outline:2px solid #111;outline-offset:2px}"},
+    {"name":"Source Field","kind":"input","description":"Borderless YouTube URL intake.","html":"<input class=\"ds-source\" placeholder=\"Pega un enlace de YouTube Music\">","css":".ds-source{height:34px;border:0;border-bottom:1px solid #d8d8d3;background:transparent;color:#111;font:13px sans-serif}.ds-source:focus-visible{outline:2px solid #111;outline-offset:2px}"},
+    {"name":"Tool Button","kind":"nav","description":"Active vertical editor tool.","html":"<button class=\"ds-tool\" aria-label=\"Letra\">Aa</button>","css":".ds-tool{width:37px;height:37px;border:0;border-radius:4px;background:#111;color:#fff;font:600 12px sans-serif}.ds-tool:focus-visible{outline:2px solid #111;outline-offset:2px}"}
+  ],
+  "narrative": {
+    "northStar": "The Monochrome Edit Suite",
+    "overview": "AK Studio is a focused production tool: dense, quiet, precise, and immediately usable.",
+    "keyCharacteristics": ["Monochrome, compact, professional.","Icons carry frequent actions.","Red is reserved for musical tempo markers."],
+    "rules": [{"name":"The Tempo-Only Rule","body":"Red belongs to beat and bar information, never general actions or decoration.","section":"colors"}],
+    "dos": ["Do keep the preview and timeline visually dominant.","Do disclose demo or unavailable processing states honestly."],
+    "donts": ["Don't introduce gradients, glass effects, or decorative color.","Don't imply processing is ready before the external processor is connected."]
+  }
+}
