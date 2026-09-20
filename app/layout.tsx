@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AK Studio — Karaoke en sincronía",
-  description: "Convierte una canción en un karaoke editable y sincronizado.",
+  title: "AK Studio — Karaoke in sync",
+  description: "Turn a song into an editable, synchronized karaoke video.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body className="antialiased">{children}</body>
     </html>
   );

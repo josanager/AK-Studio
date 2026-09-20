@@ -26,6 +26,8 @@ La propuesta combina en un solo flujo la preparación automática de una canció
 - YouTube Music es el origen preferido, con compatibilidad prevista para enlaces públicos de YouTube.
 - La línea de tiempo muestra audio, frases de la letra, compases y pulsos musicales.
 - El usuario puede editar el texto, la posición temporal y la tipografía de las letras.
+- Las sesiones, proyectos, audios y vídeos son efímeros y no se guardan en la cuenta.
+- El único contenido creativo persistente del usuario son colecciones de tipografías favoritas.
 - La exportación produce un vídeo de karaoke.
 - El plan gratuito permite un karaoke por semana y añade una marca de agua.
 - El plan de pago elimina la marca de agua y permite exportaciones ilimitadas.
@@ -39,6 +41,8 @@ La propuesta combina en un solo flujo la preparación automática de una canció
 - La implementación web deberá procesar audio en infraestructura de cómputo externa: Cloudflare Workers no ejecuta modelos pesados de separación ni binarios como yt-dlp o FFmpeg.
 - La obtención y el procesamiento de contenido deben limitarse a material propio, con licencia o con autorización del usuario, y respetar las condiciones de la plataforma de origen.
 - La pasarela de pago está preparada para Stripe; las credenciales definitivas siguen pendientes.
+- Toda la interfaz orientada al usuario se presenta en inglés.
+- Para producción a escala, Sites aloja la interfaz y la capa de coordinación; la descarga autorizada, separación y renderizado requieren una cola y cómputo GPU externo.
 
 ## Brand Commitments
 
