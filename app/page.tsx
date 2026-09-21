@@ -1,11 +1,20 @@
-import Studio from "./studio";
-import { requireCurrentUser } from "./auth";
-import { getPlanSnapshot } from "../lib/plans";
+import {ArrowRight, Check, Gauge, Link2, Mic2, Play, Type} from "lucide-react";
+import {getCurrentUser} from "./auth";
 
 export const dynamic = "force-dynamic";
+const steps=[{number:"01",title:"Paste",copy:"Add a YouTube or YouTube Music link."},{number:"02",title:"Separate",copy:"Remove the lead vocal while keeping the instrumental and backing vocals."},{number:"03",title:"Sync",copy:"Edit lyrics on a beat-aware timeline."},{number:"04",title:"Export",copy:"Download a finished karaoke video."}];
 
-export default async function Home() {
-  const user = await requireCurrentUser("/");
-  const plan = await getPlanSnapshot(user);
-  return <Studio user={{name:user.displayName,email:user.email}} plan={plan}/>;
+export default async function Home(){
+ const user=await getCurrentUser(); const actionHref=user?"/studio":"/signin"; const actionLabel=user?"Open studio":"Start free";
+ return <main className="landing">
+  <nav className="landing-nav" aria-label="Main navigation"><a className="landing-wordmark" href="/" aria-label="AK Studio home"><span>AK</span><b>Studio</b></a><div className="landing-nav-links"><a href="#product">Product</a><a href="#plans">Plans</a></div><div className="landing-nav-actions">{user?<a className="nav-account" href="/account">Account</a>:<a className="nav-account" href="/signin">Sign in</a>}<a className="nav-primary" href={actionHref}>{actionLabel}<ArrowRight/></a></div></nav>
+  <section className="landing-hero"><div className="hero-copy"><p className="eyebrow">Karaoke video editor</p><h1>Turn any song into a karaoke video.</h1><p className="hero-lede">Paste a music link. AK Studio finds the lyrics, isolates the lead vocal, and gives you a precise timeline to make it yours.</p><div className="hero-actions"><a className="primary-cta" href={actionHref}>{actionLabel}<ArrowRight/></a><a className="text-cta" href="#product">See how it works</a></div><p className="hero-note">One video every week on Free. No card required.</p></div>
+   <div className="product-frame" aria-label="AK Studio editor preview"><div className="mock-top"><span><i>AK</i> Untitled karaoke</span><b>118 <small>BPM</small></b><button aria-label="Play preview"><Play fill="currentColor"/></button></div><div className="mock-workspace"><div className="mock-stage"><span>AK / PREVIEW</span><strong>Sing it like<br/>you mean it</strong><i/><small>AK STUDIO</small></div><div className="mock-inspector"><span>LYRICS</span><b>Sing it like</b><b className="active">you mean it</b><b>One more time</b></div></div><div className="mock-timeline"><div className="mock-ruler"><span>00:00</span><span>00:15</span><span>00:30</span><span>00:45</span></div><div className="mock-playhead"/><div className="mock-track"><em>LYRICS</em><i style={{left:"10%",width:"24%"}}>Sing it like</i><i style={{left:"36%",width:"28%"}}>you mean it</i></div><div className="mock-track audio"><em>AUDIO</em><div>{Array.from({length:44}).map((_,i)=><span key={i} style={{height:`${12+(i*17)%30}px`}}/>)}</div></div></div></div>
+  </section>
+  <section className="process-strip" id="product" aria-label="How it works">{steps.map(step=><article key={step.number}><span>{step.number}</span><div><h2>{step.title}</h2><p>{step.copy}</p></div></article>)}</section>
+  <section className="landing-section product-section"><header><p className="eyebrow">Built for the last mile</p><h2>From raw track to<br/>stage-ready video.</h2></header><div className="feature-grid"><article><Link2/><span>01</span><h3>Link to timeline</h3><p>Start from YouTube or YouTube Music. Lyrics and audio arrive together in the editor.</p></article><article><Mic2/><span>02</span><h3>Lead vocal isolation</h3><p>Keep the instrumental and backing vocals while separating the main performance.</p></article><article><Gauge/><span>03</span><h3>Beat-aware editing</h3><p>BPM markers and magnetic snapping help every lyric land exactly where it should.</p></article><article><Type/><span>04</span><h3>Your type, your timing</h3><p>Move, restyle, and refine each lyric. Save favorite font collections to your account.</p></article></div></section>
+  <section className="landing-section plans-section" id="plans"><header><p className="eyebrow">Simple plans</p><h2>Start free.<br/>Upgrade when ready.</h2></header><div className="landing-plans"><article><div><span>Free</span><strong>$0<small>/month</small></strong><p>For trying the full workflow.</p></div><ul><li><Check/>1 karaoke video per week</li><li><Check/>Open-source vocal separation</li><li><Check/>Watermarked export</li></ul><a href={actionHref}>{actionLabel}<ArrowRight/></a></article><article className="pro-plan"><div><span>Pro</span><strong>$13<small>/month</small></strong><p>For creators who publish regularly.</p></div><ul><li><Check/>Unlimited karaoke videos</li><li><Check/>Highest-quality separation</li><li><Check/>Exports without a watermark</li></ul><a href={actionHref}>Start with Free<ArrowRight/></a></article></div></section>
+  <section className="landing-final"><p className="eyebrow">Your next song is ready</p><h2>Make the words move.</h2><a href={actionHref}>{actionLabel}<ArrowRight/></a></section>
+  <footer className="landing-footer"><a className="landing-wordmark" href="/"><span>AK</span><b>Studio</b></a><p>Music in. Karaoke out.</p><span>© 2026 AK Studio</span></footer>
+ </main>;
 }
