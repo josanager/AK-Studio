@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       const fileResponse = await fetch(`${processorBase}${path}`, { headers: { authorization: `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}` } });
       if (!fileResponse.ok || !fileResponse.body) throw new Error(`The ${stem} stem could not be stored.`);
       await env.TEMP_BUCKET.put(`audio/${usageId}-${stem}.flac`, fileResponse.body, {
-        httpMetadata: { contentType: "audio/flac", cacheControl: "private, max-age=3600" },
+        httpMetadata: { contentType: "audio/flac", cacheControl: "private, max-age=86400" },
         customMetadata: { createdAt: new Date().toISOString(), source: "youtube", stem, userId: user.userId },
       });
       stored[stem] = `/api/audio/${usageId}?stem=${stem}`;

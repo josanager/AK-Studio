@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 21 de septiembre de 2026
+Actualizado: 21 de septiembre de 2026 (landing storytelling + motion pass)
 
 ## Ubicaciones
 
@@ -15,6 +15,7 @@ Actualizado: 21 de septiembre de 2026
 ### Producto e interfaz
 
 - Landing pública responsive en `/`, en inglés y con diseño monocromático.
+- Landing enriquecida: hero mock de editor más completo, secciones de valor (pegar enlace, separación de voces), showcase tipográfico visual, y motion/blur scoped solo a `.landing` (no afecta `/studio`).
 - Editor protegido en `/studio`.
 - Canvas vacío al abrir un proyecto nuevo.
 - Canvas responsive conectado a la letra seleccionada y al cabezal de reproducción.
@@ -138,3 +139,20 @@ El orden más seguro para convertir el prototipo funcional en producto vendible 
 - `CLOUDFLARE.md`: arquitectura y despliegue de infraestructura.
 - `PRODUCT.md`: alcance y reglas del producto.
 - `DESIGN.md`: dirección visual.
+
+
+## Editor UX pass (21 Sep 2026)
+
+Completed in this pass (client + audio API path only):
+
+1. **Timeline hit targets** — playhead, lyric clips, time ruler, track canvas, and transport scrub use larger pointer/touch targets and shared scrub handlers (`scrubToClientX` / `scrubFromPointer`).
+2. **Responsive shell** — timeline stays taller on mid/small widths; track labels collapse on narrow screens without removing lyrics editing.
+3. **Audio cache ~24h** — `lib/audio-cache.ts` stores stems in Cache Storage and plays via `blob:` URLs; R2 object + GET responses use `max-age=86400`; GET rejects/deletes stems older than 24h via `createdAt` metadata.
+4. **Playback hardening** — play/pause syncs lead+backing stems, keeps drift under ~350ms, surfaces play failures in the notice banner.
+
+### Still blocked / not done here
+
+1. **GPU processor deploy** — `/api/audio` still needs `GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET`. Without them, analyze can return lyrics but stems stay unavailable (503).
+2. **Video export / FFmpeg render** — export button remains a stub.
+3. **Stripe production secrets** — checkout path not live.
+4. **Mac local sync** — changes are in the GitHub checkout of `josanager/AK-Studio` on the agent box (`/workspace/AK-Studio`). The Mac path `/Users/josanestrellaflores/Documents/Codex/2026-09-20/sites-plugin-sites-openai-curated-remote` could not be edited: this subagent is box-scoped and `machineId` on Shell/Read is ignored. On the Mac, `git pull` (or copy these files) before verifying the UI.
