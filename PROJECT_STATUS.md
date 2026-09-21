@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 21 de septiembre de 2026 (mobile edge-to-edge, landing type cycle, auth → /studio)
+Actualizado: 21 de septiembre de 2026 (Stripe Checkout + webhook en modo prueba)
 
 ## Ubicaciones
 
@@ -58,6 +58,15 @@ Actualizado: 21 de septiembre de 2026 (mobile edge-to-edge, landing type cycle, 
 - R2 está planteado para conservar audio temporal durante 24 horas.
 - La web se despliega directamente con Wrangler y también está sincronizada con GitHub.
 
+### Pagos y suscripciones
+
+- Stripe Checkout abre correctamente el plan AK Studio Pro de USD 13 al mes.
+- El producto, precio y webhook de Stripe están configurados en el entorno de prueba.
+- Los secretos de Stripe están guardados como secretos cifrados del Worker; no están en Git.
+- El webhook verifica la firma de Stripe y sincroniza altas, cambios y cancelaciones con D1.
+- Checkout adjunta el ID interno del usuario tanto a la sesión como a la suscripción.
+- Falta verificar la empresa en Stripe y repetir producto, precio, webhook y claves en modo Live antes de aceptar dinero real.
+
 ### Procesador multimedia
 
 - Existe un servicio Python preparado en `processor/server.py`.
@@ -72,7 +81,7 @@ Estas funciones no deben anunciarse como operativas en producción hasta complet
 
 1. **Procesamiento real de audio.** El procesador GPU/contenedor todavía debe desplegarse y conectarse mediante `GPU_PROCESSOR_URL` y `PROCESSOR_WEBHOOK_SECRET`. Por esto, pegar un enlace ya detecta metadatos y letra, pero todavía no descarga ni separa la canción en el sitio público.
 2. **Exportación de vídeo.** El botón y la interfaz existen, pero falta el render final con FFmpeg, la marca de agua del plan Free y la descarga del archivo terminado.
-3. **Stripe en producción.** Checkout está preparado, pero faltan producto, precio, secretos, webhook verificado y actualización automática del plan en D1.
+3. **Stripe Live.** El flujo completo funciona en modo prueba. Para aceptar dinero real falta verificar la empresa y configurar las credenciales, producto/precio y webhook equivalentes en modo Live.
 4. **Separación premium.** BS-RoFormer está previsto para Free; Moises.ai o Music.ai siguen pendientes de proveedor y clave para Pro.
 5. **Dominio personalizado.** La aplicación continúa usando `workers.dev`.
 6. **Operación a escala.** Faltan rate limiting, monitorización de errores, alertas de gasto, reintentos de trabajos y pruebas de carga.
@@ -127,7 +136,7 @@ El orden más seguro para convertir el prototipo funcional en producto vendible 
 1. Desplegar el procesador multimedia y comprobar descarga, BPM y stems con un archivo autorizado.
 2. Conectar el procesador a Worker/R2 y verificar borrado efectivo a las 24 horas.
 3. Implementar render de vídeo y exportación Free con marca de agua.
-4. Configurar Stripe y su webhook; después habilitar el plan Pro.
+4. Completar la verificación de Stripe y promover la integración probada a modo Live.
 5. Añadir dominio personalizado, rate limiting, observabilidad y alertas.
 6. Activar despliegues automáticos desde GitHub y añadir una prueba end-to-end del flujo principal.
 
@@ -139,6 +148,7 @@ El orden más seguro para convertir el prototipo funcional en producto vendible 
 - `app/api/analyze/route.ts`: metadatos y letras.
 - `app/api/audio/route.ts`: orquestación del procesador y guardado en R2.
 - `app/api/billing/checkout/route.ts`: creación del checkout de Stripe.
+- `app/api/billing/webhook/route.ts`: verificación de firma y sincronización de suscripciones con D1.
 - `lib/auth.ts`: Better Auth y Google OAuth.
 - `lib/plans.ts`: planes y límite semanal.
 - `db/schema.ts`: esquema persistente de D1.
