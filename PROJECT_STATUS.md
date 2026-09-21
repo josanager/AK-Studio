@@ -1,6 +1,10 @@
 # AK Studio — estado y guía de continuidad
 
+<<<<<<< HEAD
 Actualizado: 21 de septiembre de 2026 (responsive pass across landing/studio/account/signin)
+=======
+Actualizado: 21 de septiembre de 2026 (timeline real audio waveforms)
+>>>>>>> bce74c6 (Replace fake timeline stubs with real audio waveforms spanning full clips.)
 
 ## Ubicaciones
 
@@ -169,3 +173,22 @@ Product-wide layout pass on existing breakpoints (no parallel system):
 Files: `app/globals.css`, `app/page.tsx`, `PROJECT_STATUS.md`. No commit/push in this pass.
 
 **Verify:** resize `/` at 1280 → 1024 → 768 → 430; `/studio` (or mock shell) at same widths for topbar/source/timeline scrub; `/account` and `/signin` for single-column stack. Ignore known `tsc` processor/worker noise.
+<<<<<<< HEAD
+=======
+
+
+## Timeline waveforms (21 Sep 2026)
+
+Replaced the decorative 124-bar stub in `app/studio.tsx` with real peaks:
+
+1. **`lib/audio-peaks.ts`** — `fetch` + `AudioContext.decodeAudioData` → `getChannelData` max-abs peaks, normalized 0–1; `resamplePeaks` for display density.
+2. **`components/waveform-track.tsx`** — ResizeObserver bar count so width tracks clip/timeline scale (same `minWidth` zoom formula as lyric track); empty skeleton when peaks missing (no fake song pattern).
+3. **Backing + lead vocal** both decode from their stem `blob:`/`audio` URLs after `/api/audio` succeeds.
+4. **CSS** — `.wave-track` bars flex across full track width; `.wave-empty` thin baseline only.
+
+**Note:** If `/api/audio` returns 503 (GPU processor down), peaks cannot be computed — tracks stay empty/skeleton for the full clip length. When stems load, waveforms fill 0→duration.
+
+**Verify:** create karaoke with working audio → backing/vocal waveforms span full timeline (match lyric span); zoom changes density/width; mute still dims tracks. Ignore known `tsc` processor/worker noise. No commit/push in this pass.
+
+Files: `lib/audio-peaks.ts`, `components/waveform-track.tsx`, `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
+>>>>>>> bce74c6 (Replace fake timeline stubs with real audio waveforms spanning full clips.)
