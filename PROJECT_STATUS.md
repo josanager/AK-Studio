@@ -1,10 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-<<<<<<< HEAD
-Actualizado: 21 de septiembre de 2026 (responsive pass across landing/studio/account/signin)
-=======
-Actualizado: 21 de septiembre de 2026 (timeline real audio waveforms)
->>>>>>> bce74c6 (Replace fake timeline stubs with real audio waveforms spanning full clips.)
+Actualizado: 21 de septiembre de 2026 (responsive + real timeline waveforms)
 
 ## Ubicaciones
 
@@ -170,11 +166,9 @@ Product-wide layout pass on existing breakpoints (no parallel system):
 - **Studio:** source bar wraps on phone; lyrics+preview stack under `480`; touch targets ~44px; timeline playhead hit areas from prior pass preserved.
 - **Account / sign-in:** plan cards stack by `900`; sign-in brand column stacks above form; fluid titles and 44px controls.
 
-Files: `app/globals.css`, `app/page.tsx`, `PROJECT_STATUS.md`. No commit/push in this pass.
+Files: `app/globals.css`, `app/page.tsx`, `PROJECT_STATUS.md`.
 
 **Verify:** resize `/` at 1280 → 1024 → 768 → 430; `/studio` (or mock shell) at same widths for topbar/source/timeline scrub; `/account` and `/signin` for single-column stack. Ignore known `tsc` processor/worker noise.
-<<<<<<< HEAD
-=======
 
 
 ## Timeline waveforms (21 Sep 2026)
@@ -188,7 +182,6 @@ Replaced the decorative 124-bar stub in `app/studio.tsx` with real peaks:
 
 **Note:** If `/api/audio` returns 503 (GPU processor down), peaks cannot be computed — tracks stay empty/skeleton for the full clip length. When stems load, waveforms fill 0→duration.
 
-**Verify:** create karaoke with working audio → backing/vocal waveforms span full timeline (match lyric span); zoom changes density/width; mute still dims tracks. Ignore known `tsc` processor/worker noise. No commit/push in this pass.
+**Verify:** create karaoke with working audio → backing/vocal waveforms span full timeline (match lyric span); zoom changes density/width; mute still dims tracks. Ignore known `tsc` processor/worker noise.
 
 Files: `lib/audio-peaks.ts`, `components/waveform-track.tsx`, `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
->>>>>>> bce74c6 (Replace fake timeline stubs with real audio waveforms spanning full clips.)
