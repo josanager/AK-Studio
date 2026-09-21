@@ -1,4 +1,6 @@
 const allowedHosts = new Set(["youtube.com", "www.youtube.com", "music.youtube.com", "youtu.be", "m.youtube.com"]);
+import { getCurrentUser } from "../../auth";
+import { getPlanSnapshot } from "../../../lib/plans";
 
 type LyricsRecord = { trackName?: string; artistName?: string; albumName?: string; plainLyrics?: string; syncedLyrics?: string; duration?: number; instrumental?: boolean };
 type TimedLyric = { text: string; start: number; end: number };
@@ -64,6 +66,10 @@ function parseLyrics(record: LyricsRecord | undefined): TimedLyric[] {
 }
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ error: "Sign in to create a karaoke." }, { status: 401 });
+  const plan = await getPlanSnapshot(user);
+  if (!plan.canCreate) return Response.json({ error: "Your free karaoke for this week is already used. Upgrade to Pro for unlimited projects.", code: "WEEKLY_LIMIT" }, { status: 429 });
   let source: URL;
   try {
     const body = await request.json() as { url?: string };

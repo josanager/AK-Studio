@@ -42,3 +42,12 @@ export const subscriptions = sqliteTable("subscriptions", {
   currentPeriodEnd: integer("current_period_end", { mode: "timestamp" }),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 }, table => [uniqueIndex("idx_subscriptions_user").on(table.userId)]);
+
+export const weeklyUsage = sqliteTable("weekly_usage", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  weekKey: text("week_key").notNull(),
+  status: text("status").notNull().default("processing"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
+}, table => [uniqueIndex("idx_weekly_usage_user_week").on(table.userId, table.weekKey)]);
