@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 21 de septiembre de 2026 (landing storytelling + motion pass)
+Actualizado: 21 de septiembre de 2026 (responsive pass across landing/studio/account/signin)
 
 ## Ubicaciones
 
@@ -156,3 +156,16 @@ Completed in this pass (client + audio API path only):
 2. **Video export / FFmpeg render** — export button remains a stub.
 3. **Stripe production secrets** — checkout path not live.
 4. **Mac local sync** — changes are in the GitHub checkout of `josanager/AK-Studio` on the agent box (`/workspace/AK-Studio`). The Mac path `/Users/josanestrellaflores/Documents/Codex/2026-09-20/sites-plugin-sites-openai-curated-remote` could not be edited: this subagent is box-scoped and `machineId` on Shell/Read is ignored. On the Mac, `git pull` (or copy these files) before verifying the UI.
+
+## Responsive pass (21 Sep 2026)
+
+Product-wide layout pass on existing breakpoints (no parallel system):
+
+- **Breakpoints:** landing stack/nav at `1100` / `640` / `430`; studio at existing `1050` / `720` plus `480` stack; account/sign-in at `900` / `650` (plan grid single column earlier).
+- **Landing:** softer hero columns (no `600px` mock min), fluid headlines, mid-width (`~1100–1280`) mock simplification, phone stage-only mock (timeline/inspector hidden), compact `details` nav menu.
+- **Studio:** source bar wraps on phone; lyrics+preview stack under `480`; touch targets ~44px; timeline playhead hit areas from prior pass preserved.
+- **Account / sign-in:** plan cards stack by `900`; sign-in brand column stacks above form; fluid titles and 44px controls.
+
+Files: `app/globals.css`, `app/page.tsx`, `PROJECT_STATUS.md`. No commit/push in this pass.
+
+**Verify:** resize `/` at 1280 → 1024 → 768 → 430; `/studio` (or mock shell) at same widths for topbar/source/timeline scrub; `/account` and `/signin` for single-column stack. Ignore known `tsc` processor/worker noise.

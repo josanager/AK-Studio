@@ -105,6 +105,23 @@ export default async function Home() {
             {actionLabel}
             <ArrowRight />
           </a>
+          <details className="landing-nav-menu">
+            <summary aria-label="Open menu">Menu</summary>
+            <div className="landing-nav-menu-panel">
+              <a href="#product">Product</a>
+              <a href="#type">Type</a>
+              <a href="#plans">Plans</a>
+              {user ? (
+                <a href="/account">Account</a>
+              ) : (
+                <a href="/signin">Sign in</a>
+              )}
+              <a className="nav-primary" href={actionHref}>
+                {actionLabel}
+                <ArrowRight />
+              </a>
+            </div>
+          </details>
         </div>
       </nav>
 
