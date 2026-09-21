@@ -29,8 +29,8 @@ export function WaveformTrack({
     if (!el) return;
     const measure = () => {
       const w = el.clientWidth || 640;
-      // ~2.5px per bar (bar + gap) so peaks span the full clip at current scale
-      setBarCount(Math.max(48, Math.min(1400, Math.floor(w / 2.5))));
+      // ~2px per bar (bar + gap) so peaks span the full clip at current scale
+      setBarCount(Math.max(64, Math.min(1600, Math.floor(w / 2))));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -43,11 +43,16 @@ export function WaveformTrack({
     return resamplePeaks(peaks, barCount);
   }, [peaks, barCount]);
 
+  const spanStyle =
+    minWidth != null
+      ? { width: minWidth, minWidth, right: "auto" as const }
+      : { width: "100%" };
+
   return (
     <div
       ref={ref}
       className={`wave-track ${className}${bars ? "" : " wave-empty"}`.trim()}
-      style={minWidth != null ? { minWidth } : undefined}
+      style={spanStyle}
       aria-hidden="true"
     >
       {bars?.map((p, i) => (

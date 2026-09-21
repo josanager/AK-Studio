@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 21 de septiembre de 2026 (responsive + real timeline waveforms)
+Actualizado: 21 de septiembre de 2026 (studio UX: aspect frame, icon gutter, waveform span, no page scroll)
 
 ## Ubicaciones
 
@@ -25,6 +25,14 @@ Actualizado: 21 de septiembre de 2026 (responsive + real timeline waveforms)
 - Reproducción y mezcla de pistas preparadas cuando el backend entrega audio.
 - Páginas de inicio de sesión y cuenta.
 - Planes Free y Pro visibles en la cuenta y en la landing.
+
+
+### Editor UX (sep 2026)
+
+- Preview canvas locked to true **16:9 / 9:16 / 1:1** via `aspect-ratio` + container-query contain math (centered in `.stage-wrap`; no stretched full-bleed 16:9).
+- Timeline track headers are **icons only** (Captions / Music / Mic) with `title` + `aria-label`; left gutter tightened (~52px).
+- Waveform tracks set explicit `width`/`minWidth` to match lyric track zoom span so peaks fill the full clip.
+- Studio shell: `html/body:has(.ak-shell)` + `.ak-shell` use `100dvh` + `overflow:hidden` (no page scrollbars); inner lyrics/inspector/track-canvas scroll without chrome.
 
 ### Usuarios y datos
 

@@ -318,3 +318,156 @@
   .scrub>button{width:18px;height:18px}
 }
 @media(pointer:coarse) and (min-width:641px){.nav-account{display:flex;align-items:center}}
+
+/* === Studio UX polish: aspect frame, icon gutter, waveform span, no page scroll === */
+
+/* Lock studio to the viewport — no browser page scrollbars */
+html:has(.ak-shell),
+html:has(.ak-shell) body{
+  height:100%;
+  max-height:100dvh;
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+.ak-shell{
+  height:100dvh;
+  max-height:100dvh;
+  min-height:0;
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+
+/* Inner panes may scroll; hide chrome so the editor feels chrome-free */
+.lyrics-panel,
+.inspector{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.lyrics-panel::-webkit-scrollbar,
+.inspector::-webkit-scrollbar{
+  width:0;
+  height:0;
+  display:none;
+}
+
+/* Preview canvas: true aspect-ratio frame, contain-centered in available space */
+.stage-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:0;
+  overflow:hidden;
+  padding:10px;
+  background:#c8c8c2;
+  container-type:size;
+}
+.karaoke-stage{
+  position:relative;
+  box-sizing:border-box;
+  background:#090909;
+  color:#fff;
+  overflow:hidden;
+  flex-shrink:0;
+  box-shadow:0 1px 0 #0006;
+  max-width:100%;
+  max-height:100%;
+}
+.karaoke-stage.aspect-16-9{
+  aspect-ratio:16/9;
+  width:min(100cqw, calc(100cqh * 16 / 9));
+  height:auto;
+  max-width:100%;
+  max-height:100%;
+}
+.karaoke-stage.aspect-9-16{
+  aspect-ratio:9/16;
+  height:min(100cqh, calc(100cqw * 16 / 9));
+  width:auto;
+  max-width:100%;
+  max-height:100%;
+}
+.karaoke-stage.aspect-1-1{
+  aspect-ratio:1/1;
+  width:min(100cqw, 100cqh);
+  height:auto;
+  max-width:100%;
+  max-height:100%;
+}
+/* Fallback when container queries unavailable: still keep aspect-ratio + contain */
+@supports not (width:1cqw){
+  .karaoke-stage.aspect-16-9{width:100%;height:auto;aspect-ratio:16/9;max-height:100%}
+  .karaoke-stage.aspect-9-16{height:100%;width:auto;aspect-ratio:9/16;max-width:100%}
+  .karaoke-stage.aspect-1-1{width:auto;height:100%;aspect-ratio:1/1;max-width:100%}
+}
+
+/* Timeline track headers: icons only, tight gutter */
+.timeline-body{
+  grid-template-columns:52px 1fr;
+  min-width:0;
+  overflow:hidden;
+}
+.track-heads>div{
+  grid-template-columns:1fr 28px;
+  padding:0 4px;
+  gap:2px;
+  justify-items:center;
+}
+.track-heads>div>svg{
+  width:16px;
+  height:16px;
+  color:#555;
+}
+.track-heads span{
+  display:none;
+}
+.track-canvas{
+  overflow:auto;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.track-canvas::-webkit-scrollbar{
+  width:0;
+  height:0;
+  display:none;
+}
+
+/* Waveform fills the entire clip width (same span as lyrics track) */
+.wave-track{
+  left:0;
+  right:auto;
+  width:100%;
+  padding:0;
+  gap:1px;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  overflow:hidden;
+}
+.wave-track i{
+  flex:1 1 0;
+  min-width:0;
+  width:auto;
+  align-self:center;
+}
+.wave-track.wave-empty:after{
+  content:"";
+  flex:1 1 auto;
+  height:1px;
+  background:#e4e4df;
+  margin:0;
+  align-self:center;
+}
+
+@media(max-width:1050px){
+  .timeline-body{grid-template-columns:48px 1fr}
+}
+@media(max-width:720px){
+  .timeline-body{grid-template-columns:44px minmax(0,1fr);overflow:hidden}
+  .stage-wrap{padding:6px}
+  .karaoke-stage.aspect-16-9,
+  .karaoke-stage.aspect-9-16,
+  .karaoke-stage.aspect-1-1{
+    max-width:100%;
+    max-height:100%;
+  }
+}
