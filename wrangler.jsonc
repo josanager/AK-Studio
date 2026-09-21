@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ak-studio",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BETTER_AUTH_URL": "https://ak-studio.josanager.workers.dev",
+    "SITE_URL": "https://ak-studio.josanager.workers.dev"
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "dist/client"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ak-studio",
+      "database_id": "aab3937c-082e-4571-811b-465c49759235",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "TEMP_BUCKET",
+      "bucket_name": "ak-studio-temp"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "PROCESSING_QUEUE",
+        "queue": "ak-studio-jobs"
+      }
+    ]
+  },
+  "observability": {
+    "enabled": true
+  }
+}

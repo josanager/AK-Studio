@@ -1,0 +1,11 @@
+# Never commit real values. Configure production values with Wrangler secrets.
+SITE_URL=http://localhost:5173
+MASTER_ENCRYPTION_KEY=replace-with-a-long-random-secret
+STRIPE_SECRET_KEY=sk_test_replace_me
+STRIPE_PRICE_PRO=price_replace_me
+GPU_PROCESSOR_URL=https://processor.example.com/jobs
+PROCESSOR_WEBHOOK_SECRET=replace-with-a-long-random-secret
+BETTER_AUTH_URL=http://localhost:5173
+BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
+GOOGLE_CLIENT_ID=replace-with-google-web-client-id
+GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
