@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 21 de septiembre de 2026 (studio UX: aspect frame, icon gutter, waveform span, no page scroll)
+Actualizado: 21 de septiembre de 2026 (mobile edge-to-edge, landing type cycle, auth → /studio)
 
 ## Ubicaciones
 
@@ -164,6 +164,16 @@ Completed in this pass (client + audio API path only):
 2. **Video export / FFmpeg render** — export button remains a stub.
 3. **Stripe production secrets** — checkout path not live.
 4. **Mac local sync** — changes are in the GitHub checkout of `josanager/AK-Studio` on the agent box (`/workspace/AK-Studio`). The Mac path `/Users/josanestrellaflores/Documents/Codex/2026-09-20/sites-plugin-sites-openai-curated-remote` could not be edited: this subagent is box-scoped and `machineId` on Shell/Read is ignored. On the Mac, `git pull` (or copy these files) before verifying the UI.
+
+## Mobile + landing + auth navigation (21 Sep 2026)
+
+1. **Studio mobile edge-to-edge** — `.ak-shell` drops horizontal gutters under 720px (safe-area only on topbar/source/timeline). Stage wrap is full-bleed black (`padding:0`); 16:9 uses available width. Source bar stacks full-width (link → permission → Create). Under ~640px, Export / Split / Delete / Create / aspect / Add line are **icon-only** via `.btn-label` + `aria-label`/`title`. Keeps `100dvh` + no page scroll.
+2. **Landing** — Signed-in users hitting `/` **server-redirect to `/studio`**. Copy tightened (shorter hero/story/features/plans). Typography showcase is **3 faces only** (`Bebas Neue`, `Playfair Display`, `Space Mono`) cycling one-at-a-time in `components/type-cycle.tsx` (~3.2s, respects reduced motion). Process strip is icon-led.
+3. **Auth nav** — Studio wordmark → `/studio`; account back link → `/studio` (label “Studio”); sign-out still → `/`. Landing remains the signed-out home.
+
+Files: `app/page.tsx`, `app/studio.tsx`, `app/globals.css`, `app/account/panel.tsx`, `components/type-cycle.tsx`, `PROJECT_STATUS.md`.
+
+**Verify:** phone Safari `/studio` — no side page margins, stage uses width, icon toolbar; `/` while logged in → `/studio`; account Back → studio. Ignore known `tsc` processor noise.
 
 ## Responsive pass (21 Sep 2026)
 

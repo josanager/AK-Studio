@@ -1,65 +1,16 @@
-import {ArrowRight, Check, Gauge, Link2, Mic2, Play, Type} from "lucide-react";
+import {redirect} from "next/navigation";
+import {ArrowRight, Check, Gauge, Link2, Mic2, Type, WandSparkles} from "lucide-react";
 import {LandingReveal} from "../components/landing-reveal";
+import {TypeCycle} from "../components/type-cycle";
 import {getCurrentUser} from "./auth";
 
 export const dynamic = "force-dynamic";
 
 const steps = [
-  {number: "01", title: "Paste", copy: "Add a YouTube or YouTube Music link."},
-  {number: "02", title: "Separate", copy: "Remove the lead vocal while keeping the instrumental and backing vocals."},
-  {number: "03", title: "Sync", copy: "Edit lyrics on a beat-aware timeline."},
-  {number: "04", title: "Export", copy: "Download a finished karaoke video."},
-];
-
-const typefaces = [
-  {
-    name: "Condensed Bold",
-    sample: "Sing it like you mean it",
-    family: '"Avenir Next Condensed", "Avenir Next", sans-serif',
-    weight: 800,
-    style: "normal" as const,
-    letter: "-0.04em",
-  },
-  {
-    name: "Display Serif",
-    sample: "Hold the night a little longer",
-    family: "Georgia, 'Times New Roman', serif",
-    weight: 700,
-    style: "italic" as const,
-    letter: "-0.02em",
-  },
-  {
-    name: "Mono Punch",
-    sample: "ONE MORE TIME",
-    family: '"Courier New", Courier, monospace',
-    weight: 700,
-    style: "normal" as const,
-    letter: "0.04em",
-  },
-  {
-    name: "Heavy Impact",
-    sample: "Don't stop now",
-    family: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
-    weight: 400,
-    style: "normal" as const,
-    letter: "0.01em",
-  },
-  {
-    name: "Classic Book",
-    sample: "Every word in place",
-    family: "Palatino, 'Palatino Linotype', 'Book Antiqua', serif",
-    weight: 700,
-    style: "normal" as const,
-    letter: "-0.01em",
-  },
-  {
-    name: "Clean Sans",
-    sample: "Make the words move",
-    family: '"Trebuchet MS", "Segoe UI", sans-serif',
-    weight: 700,
-    style: "normal" as const,
-    letter: "-0.03em",
-  },
+  {number: "01", title: "Paste", copy: "Drop a YouTube Music link.", Icon: Link2},
+  {number: "02", title: "Separate", copy: "Lead vocal off; backing stays.", Icon: Mic2},
+  {number: "03", title: "Sync", copy: "Beat-aware lyric timeline.", Icon: Gauge},
+  {number: "04", title: "Export", copy: "Download the karaoke video.", Icon: WandSparkles},
 ];
 
 const wave = (seed: number, count: number, base = 10, span = 28) =>
@@ -67,8 +18,10 @@ const wave = (seed: number, count: number, base = 10, span = 28) =>
 
 export default async function Home() {
   const user = await getCurrentUser();
-  const actionHref = user ? "/studio" : "/signin";
-  const actionLabel = user ? "Open studio" : "Start free";
+  if (user) redirect("/studio");
+
+  const actionHref = "/signin";
+  const actionLabel = "Start free";
   const backingBars = wave(3, 52);
   const vocalBars = wave(7, 52, 6, 22);
 
@@ -92,15 +45,9 @@ export default async function Home() {
           <a href="#plans">Plans</a>
         </div>
         <div className="landing-nav-actions">
-          {user ? (
-            <a className="nav-account" href="/account">
-              Account
-            </a>
-          ) : (
-            <a className="nav-account" href="/signin">
-              Sign in
-            </a>
-          )}
+          <a className="nav-account" href="/signin">
+            Sign in
+          </a>
           <a className="nav-primary" href={actionHref}>
             {actionLabel}
             <ArrowRight />
@@ -111,11 +58,7 @@ export default async function Home() {
               <a href="#product">Product</a>
               <a href="#type">Type</a>
               <a href="#plans">Plans</a>
-              {user ? (
-                <a href="/account">Account</a>
-              ) : (
-                <a href="/signin">Sign in</a>
-              )}
+              <a href="/signin">Sign in</a>
               <a className="nav-primary" href={actionHref}>
                 {actionLabel}
                 <ArrowRight />
@@ -128,10 +71,10 @@ export default async function Home() {
       <section className="landing-hero">
         <div className="hero-glow" aria-hidden="true" />
         <div className="hero-copy landing-fade-in">
-          <p className="eyebrow">Karaoke video editor</p>
-          <h1>Turn any song into a karaoke video.</h1>
+          <p className="eyebrow">Karaoke editor</p>
+          <h1>Music in. Karaoke out.</h1>
           <p className="hero-lede">
-            Paste a music link. AK Studio finds the lyrics, isolates the lead vocal, and gives you a precise timeline to make it yours.
+            Paste a link. We find lyrics, isolate the lead vocal, and open a beat-aware timeline.
           </p>
           <div className="hero-actions">
             <a className="primary-cta" href={actionHref}>
@@ -139,10 +82,10 @@ export default async function Home() {
               <ArrowRight />
             </a>
             <a className="text-cta" href="#product">
-              See how it works
+              How it works
             </a>
           </div>
-          <p className="hero-note">One video every week on Free. No card required.</p>
+          <p className="hero-note">Free · 1 video / week · No card</p>
         </div>
 
         <div className="product-frame landing-fade-in landing-fade-in-delay" aria-label="AK Studio editor preview">
@@ -154,7 +97,7 @@ export default async function Home() {
               118 <small>BPM</small>
             </b>
             <button type="button" aria-label="Play preview">
-              <Play fill="currentColor" />
+              <PlayIcon />
             </button>
           </div>
 
@@ -189,7 +132,7 @@ export default async function Home() {
               <b>Hold the night</b>
               <b className="active">Sing it like you mean it</b>
               <b>One more time</b>
-              <b>Don't look back</b>
+              <b>Don&apos;t look back</b>
               <div className="mock-type-panel">
                 <span>TYPE</span>
                 <em style={{fontFamily: '"Avenir Next Condensed", sans-serif'}}>Condensed</em>
@@ -222,7 +165,7 @@ export default async function Home() {
                 Sing it like
               </i>
               <i style={{left: "58%", width: "20%"}}>One more time</i>
-              <i style={{left: "82%", width: "14%"}}>Don't look</i>
+              <i style={{left: "82%", width: "14%"}}>Don&apos;t look</i>
             </div>
             <div className="mock-track audio backing">
               <em>BACKING</em>
@@ -248,7 +191,9 @@ export default async function Home() {
         <div id="product" className="process-strip-inner" aria-label="How it works">
           {steps.map((step) => (
             <article key={step.number}>
-              <span>{step.number}</span>
+              <span className="process-icon" aria-hidden="true">
+                <step.Icon />
+              </span>
               <div>
                 <h2>{step.title}</h2>
                 <p>{step.copy}</p>
@@ -262,9 +207,9 @@ export default async function Home() {
         <LandingReveal as="header">
           <p className="eyebrow">The flow</p>
           <h2 id="story-title">
-            Three moves.
+            Two moves.
             <br />
-            One finished video.
+            One video.
           </h2>
         </LandingReveal>
 
@@ -273,24 +218,24 @@ export default async function Home() {
             <div className="story-visual paste-visual">
               <div className="glass-chip">
                 <Link2 />
-                <span>Paste YouTube link</span>
+                <span>Paste link</span>
               </div>
               <div className="paste-field">
-                <span>https://music.youtube.com/watch?v=…</span>
+                <span>music.youtube.com/…</span>
                 <b>Create</b>
               </div>
               <div className="paste-meta">
                 <i />
                 <div>
                   <strong>Neon Skyline</strong>
-                  <small>Lyrics found · 3:42</small>
+                  <small>Lyrics · 3:42</small>
                 </div>
               </div>
             </div>
             <div className="story-copy">
               <span>01</span>
-              <h3>Just paste a YouTube link</h3>
-              <p>Drop a public YouTube or YouTube Music URL. Title, artist, and lyrics arrive in the editor—no audio upload, no file prep.</p>
+              <h3>Paste a link</h3>
+              <p>Public YouTube or YouTube Music. Title, artist, and lyrics land in the editor.</p>
             </div>
           </LandingReveal>
 
@@ -308,7 +253,7 @@ export default async function Home() {
               </div>
               <div className="stem-panel active">
                 <div className="stem-label">
-                  <Gauge /> Backing + instrumental
+                  <Gauge /> Backing
                 </div>
                 <div className="stem-wave">
                   {wave(11, 36, 8, 26).map((h, i) => (
@@ -316,12 +261,12 @@ export default async function Home() {
                   ))}
                 </div>
               </div>
-              <div className="glass-chip stem-chip">Auto-detect · Separate</div>
+              <div className="glass-chip stem-chip">Auto-separate</div>
             </div>
             <div className="story-copy">
               <span>02</span>
-              <h3>Auto-detect and separate vocals</h3>
-              <p>Lead vocal comes off the mix while the instrumental and backing vocals stay. Mix stems on a beat-aware timeline.</p>
+              <h3>Separate vocals</h3>
+              <p>Lead vocal off the mix. Instrumental and backing stay on the timeline.</p>
             </div>
           </LandingReveal>
         </div>
@@ -331,114 +276,63 @@ export default async function Home() {
         <LandingReveal as="header">
           <p className="eyebrow">Typography</p>
           <h2 id="type-title">
-            Edit karaoke type
+            Type that
             <br />
-            until it feels right.
+            fits the song.
           </h2>
         </LandingReveal>
         <LandingReveal>
-          <p className="type-lede">Pick a face, size, and weight. Save favorite collections to your account—projects stay ephemeral.</p>
+          <p className="type-lede">Three faces. Size, weight, and timing—yours.</p>
         </LandingReveal>
-        <div className="type-showcase">
-          {typefaces.map((face, index) => (
-            <LandingReveal as="article" key={face.name} className="type-card" delay={index * 70}>
-              <div
-                className="type-stage"
-                style={{
-                  fontFamily: face.family,
-                  fontWeight: face.weight,
-                  fontStyle: face.style,
-                  letterSpacing: face.letter,
-                }}
-              >
-                <span>{face.sample}</span>
-                <i aria-hidden="true" />
-              </div>
-              <footer>
-                <Type />
-                <b>{face.name}</b>
-              </footer>
-            </LandingReveal>
-          ))}
-        </div>
-        <div className="type-showcase type-showcase-web">
-          <LandingReveal as="article" className="type-card" delay={80}>
-            <div className="type-stage face-bebas">
-              <span>TURN IT UP</span>
-              <i aria-hidden="true" />
-            </div>
-            <footer>
-              <Type />
-              <b>Bebas Neue</b>
-            </footer>
-          </LandingReveal>
-          <LandingReveal as="article" className="type-card" delay={140}>
-            <div className="type-stage face-playfair">
-              <span>Softly, for the room</span>
-              <i aria-hidden="true" />
-            </div>
-            <footer>
-              <Type />
-              <b>Playfair Display</b>
-            </footer>
-          </LandingReveal>
-          <LandingReveal as="article" className="type-card" delay={200}>
-            <div className="type-stage face-mono">
-              <span>SYNC_TO_BEAT</span>
-              <i aria-hidden="true" />
-            </div>
-            <footer>
-              <Type />
-              <b>Space Mono</b>
-            </footer>
-          </LandingReveal>
-        </div>
+        <LandingReveal delay={80}>
+          <TypeCycle />
+        </LandingReveal>
       </section>
 
       <section className="landing-section product-section">
         <LandingReveal as="header">
-          <p className="eyebrow">Built for the last mile</p>
+          <p className="eyebrow">Built for finish</p>
           <h2>
-            From raw track to
+            Link to
             <br />
-            stage-ready video.
+            stage-ready.
           </h2>
         </LandingReveal>
         <div className="feature-grid">
           <LandingReveal as="article" delay={40}>
             <Link2 />
             <span>01</span>
-            <h3>Link to timeline</h3>
-            <p>Start from YouTube or YouTube Music. Lyrics and audio arrive together in the editor.</p>
+            <h3>Link in</h3>
+            <p>YouTube Music → lyrics + audio in one editor.</p>
           </LandingReveal>
           <LandingReveal as="article" delay={100}>
             <Mic2 />
             <span>02</span>
-            <h3>Lead vocal isolation</h3>
-            <p>Keep the instrumental and backing vocals while separating the main performance.</p>
+            <h3>Vocal off</h3>
+            <p>Lead isolated; backing and instrumental stay.</p>
           </LandingReveal>
           <LandingReveal as="article" delay={160}>
             <Gauge />
             <span>03</span>
-            <h3>Beat-aware editing</h3>
-            <p>BPM markers and magnetic snapping help every lyric land exactly where it should.</p>
+            <h3>On the beat</h3>
+            <p>BPM markers and magnetic lyric snaps.</p>
           </LandingReveal>
           <LandingReveal as="article" delay={220}>
             <Type />
             <span>04</span>
-            <h3>Your type, your timing</h3>
-            <p>Move, restyle, and refine each lyric. Save favorite font collections to your account.</p>
+            <h3>Your type</h3>
+            <p>Restyle each line. Save font collections.</p>
           </LandingReveal>
         </div>
       </section>
 
       <section className="landing-section plans-section" id="plans">
         <LandingReveal as="header">
-          <p className="eyebrow">Simple plans</p>
+          <p className="eyebrow">Plans</p>
           <h2>
-            Start free.
+            Free first.
             <br />
-            Upgrade when ready.
+            Pro when ready.
           </h2>
         </LandingReveal>
         <LandingReveal>
@@ -447,17 +341,17 @@ export default async function Home() {
               <div>
                 <span>Free</span>
                 <strong>
-                  $0<small>/month</small>
+                  $0<small>/mo</small>
                 </strong>
-                <p>For trying the full workflow.</p>
+                <p>Try the full flow.</p>
               </div>
               <ul>
                 <li>
-                  <Check />1 karaoke video per week
+                  <Check />1 video / week
                 </li>
                 <li>
                   <Check />
-                  Open-source vocal separation
+                  Open-source separation
                 </li>
                 <li>
                   <Check />
@@ -473,26 +367,26 @@ export default async function Home() {
               <div>
                 <span>Pro</span>
                 <strong>
-                  $13<small>/month</small>
+                  $13<small>/mo</small>
                 </strong>
-                <p>For creators who publish regularly.</p>
+                <p>Publish often.</p>
               </div>
               <ul>
                 <li>
                   <Check />
-                  Unlimited karaoke videos
+                  Unlimited videos
                 </li>
                 <li>
                   <Check />
-                  Highest-quality separation
+                  Best-quality separation
                 </li>
                 <li>
                   <Check />
-                  Exports without a watermark
+                  No watermark
                 </li>
               </ul>
               <a href={actionHref}>
-                Start with Free
+                Start free
                 <ArrowRight />
               </a>
             </article>
@@ -501,7 +395,7 @@ export default async function Home() {
       </section>
 
       <LandingReveal as="section" className="landing-final">
-        <p className="eyebrow">Your next song is ready</p>
+        <p className="eyebrow">Ready when you are</p>
         <h2>Make the words move.</h2>
         <a href={actionHref}>
           {actionLabel}
@@ -518,5 +412,13 @@ export default async function Home() {
         <span>© 2026 AK Studio</span>
       </footer>
     </main>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+      <path d="M8 5v14l11-7z" />
+    </svg>
   );
 }
