@@ -67,3 +67,7 @@ La propuesta combina en un solo flujo la preparación automática de una canció
 ## Accessibility & Inclusion
 
 La interfaz debe ser operable con teclado, mantener contraste alto y no comunicar el tempo, la selección o los estados únicamente mediante color.
+
+## Continuidad / handoff IA
+
+El estado vivo, bloqueos y checklist para la siguiente IA están en [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) (sección **Handoff para la siguiente IA**). Actualízalo al cerrar cada entrega.

@@ -1,6 +1,96 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (export HTML→MP4 download fix)
+Actualizado: 22 de septiembre de 2026 (handoff para la siguiente IA)
+
+## Handoff para la siguiente IA (léeme primero)
+
+Este documento es la hoja de ruta y el contexto operativo. Léelo antes de tocar código. El producto es **AK Studio**: editor web de karaoke desde enlaces de YouTube / YouTube Music. UI del producto en **inglés**; el usuario (Josan) habla en **español**.
+
+### Objetivo del producto
+1. Pegar enlace de YouTube Music → obtener letras sincronizadas + descargar audio.
+2. Editar tipografía / aspecto / timeline.
+3. (Opcional) Separar lead vocal vs backing con modelo open-source (BS-RoFormer / `audio-separator`).
+4. Exportar vídeo karaoke **MP4** desde el navegador (calidad 4K/2K/1080, FPS 30/60).
+5. Free: 1 karaoke/semana + 1 draft autosaved ~24h. Pro vía Stripe.
+
+### Ubicaciones y deploy
+| Qué | Valor |
+|-----|--------|
+| Repo | `https://github.com/josanager/AK-Studio.git` (`main`) |
+| Prod | `https://ak-studio.josanager.workers.dev` |
+| Mac local | `/Users/josanestrellaflores/Documents/Codex/2026-09-20/sites-plugin-sites-openai-curated-remote` |
+| Box checkout (agentes) | `/workspace/AK-Studio` |
+| Node | **≥ 22.13** (Mac: `PATH="/opt/homebrew/opt/node@22/bin:$PATH"`) |
+| Deploy | En el Mac: `git pull github main && npm run deploy:cloudflare` (remote GitHub suele llamarse `github`) |
+| Migraciones D1 | `npm run db:migrate:cloudflare` |
+| Último commit handoff | `4a8f5a3` + este handoff (ver `git log -1`) |
+
+**Cloud Agents de Cursor no están en el plan** → trabajo en box + push + deploy Mac. No inventar menús de la app Grok Bot.
+
+### Stack
+Next/Vite (vinext) en Cloudflare Workers, D1, R2 (`TEMP_BUCKET`), Queue, Better Auth (Google), Stripe test, client export con **mediabunny** (WebCodecs) + MediaRecorder fallback.
+
+### Secretos Cloudflare (Worker `ak-studio`)
+Presentes (no están en Git): `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_*`, `STRIPE_*`, y a veces `GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET` (túnel temporal / processor).
+
+Opcionales / recomendados para audio fiable:
+- `GPU_PROCESSOR_URL` — base URL del processor (`/download`, `/process`, `/file/...`)
+- `PROCESSOR_WEBHOOK_SECRET` — Bearer
+- `COBALT_API_URL` (+ `COBALT_API_KEY` si aplica) — alternativa de descarga
+
+Sin processor GPU real, **Create karaoke** puede bajar full-mix vía yt-dlp en un processor/túnel, pero **Separate lead vocal** falla con mensaje claro en inglés. YouTube bloquea Innertube desde IPs de Cloudflare Workers (no confundir con login de Google del usuario).
+
+### Qué YA funciona (producción reciente)
+- Auth Google; `/` redirige a `/studio` si hay sesión; logout → landing.
+- Analyze: metadatos + LRCLIB lyrics.
+- Create karaoke: descarga full-mix (progreso inline en la source bar), audio en timeline, Play.
+- Timeline: playhead solo mientras se arrastra; Space play/pause; lyrics en `position:absolute` alineadas al playhead; waveforms a duración real del audio.
+- Saved tab: autosave ~24h (Free = 1 draft); delete funciona.
+- Separate lead vocal UI: menú sólido (sin click-through), timeline bloqueada con menú abierto, barra fill en waveform; API `POST /api/audio/separate`.
+- Export: menú **Export video** (principal) + **Download audio**; chip canvas **4K|2K|1080** + **30|60**; progreso; descarga **solo si es MP4 real** (`ftyp`); retry 1080/30 si 4K falla.
+
+### Qué NO está terminado / bloqueado (priorizar)
+1. **Processor GPU permanente** con `audio-separator` / BS-RoFormer — sin esto Separate no produce stems. El túnel `trycloudflare` es frágil.
+2. **Export vídeo pulido** — validar en Chrome/Safari/Firefox que el `.mp4` abre en QuickTime/VLC; mejorar fidelidad visual del stage; watermark Free opcional; 4K60 puede OOM.
+3. **Stripe Live** — hoy es test mode.
+4. Dominio custom, CI/CD Workers Builds, rate limits, observabilidad.
+5. Separación Pro vía Moises/Music.ai (previsto, no cableado).
+
+### Flujo mental del código
+- `app/studio.tsx` — editor monolítico (UI + estado).
+- `app/api/analyze/route.ts` — letras/metadatos.
+- `app/api/audio/route.ts` — descarga full-mix / stems orquestación → R2.
+- `app/api/audio/separate/route.ts` — separación bajo demanda.
+- `app/api/audio/[id]/route.ts` — servir stems.
+- `app/api/projects/*` — autosave D1.
+- `lib/export-video.ts` — export cliente MP4.
+- `lib/youtube-download.ts` / Cobalt / processor helpers.
+- `processor/server.py` — yt-dlp + (si hay deps) separación.
+- `lib/plans.ts` — Free 1 karaoke/semana (solo **Create**, no Export).
+
+### Decisiones de producto (no revertir sin preguntar)
+- UI inglés; sin checkbox “I have permission”.
+- Lead vocal track **oculto** hasta separar.
+- Export **no** es paywall.
+- Canvas aspectos solo 16:9 / 9:16 / 1:1.
+- Timeline headers = solo iconos.
+
+### Cómo continuar (checklist)
+1. `git pull` en Mac + box; Node 22.
+2. Si Separate sigue fallando: desplegar processor GPU real y `wrangler secret put GPU_PROCESSOR_URL` / `PROCESSOR_WEBHOOK_SECRET`.
+3. Probar Export video en Chrome: debe bajar `.mp4` con `ftyp`, no HTML.
+4. No reintroducir stub “Video export is the next production step”.
+5. Actualizar este archivo al cerrar cada entrega.
+
+### Historial reciente (sep 2026) — commits útiles
+- `4a8f5a3` — MP4 real (ftyp), no HTML
+- `eea0829` — export progreso 0→100%, labels de estado
+- `0be800d` — Export video + calidad/FPS
+- `9f6d0a1` / `f764640` — Separate lead vocal + menú click-through
+- `9045ac3` — lyrics timeline absolute
+- `14ede06` — waveform full length, Space, delete Saved
+
+---
 
 ## Ubicaciones
 
@@ -140,7 +230,7 @@ Files: `lib/export-video.ts`, `lib/studio-project.ts`, `app/studio.tsx`, `app/gl
 Estas funciones no deben anunciarse como operativas en producción hasta completar sus dependencias:
 
 1. **Separación de stems (GPU).** UI + `POST /api/audio/separate` listos (right-click en full-mix). Create karaoke sigue descargando full mix sin GPU. La separación real sigue necesitando un procesador con `audio-separator` (`GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET`); un tunnel solo-download responde con error claro en inglés.
-2. **Exportación de vídeo.** Client-side WebCodecs/mediabunny + MediaRecorder fallback ya exportan MP4/WebM (sin paywall). Mejoras posibles: captura DOM exacta del stage, watermark Pro/Free, aceleración GPU y límites de tamaño en 4K60.
+2. **Exportación de vídeo (mejoras).** Ya exporta MP4 cliente-side; falta pulir fidelidad del stage, watermark Free, y estabilidad 4K60.
 3. **Stripe Live.** El flujo completo funciona en modo prueba. Para aceptar dinero real falta verificar la empresa y configurar las credenciales, producto/precio y webhook equivalentes en modo Live.
 4. **Separación premium.** BS-RoFormer está previsto para Free; Moises.ai o Music.ai siguen pendientes de proveedor y clave para Pro.
 5. **Dominio personalizado.** La aplicación continúa usando `workers.dev`.
@@ -195,7 +285,7 @@ El orden más seguro para convertir el prototipo funcional en producto vendible 
 
 1. Desplegar el procesador multimedia y comprobar descarga, BPM y stems con un archivo autorizado.
 2. Conectar el procesador a Worker/R2 y verificar borrado efectivo a las 24 horas.
-3. Implementar render de vídeo y exportación Free con marca de agua.
+3. Pulir export MP4 (fidelidad del stage) y watermark Free opcional.
 4. Completar la verificación de Stripe y promover la integración probada a modo Live.
 5. Añadir dominio personalizado, rate limiting, observabilidad y alertas.
 6. Activar despliegues automáticos desde GitHub y añadir una prueba end-to-end del flujo principal.
@@ -231,7 +321,7 @@ Completed in this pass (client + audio API path only):
 ### Still blocked / not done here
 
 1. **GPU processor deploy** — `/api/audio` still needs `GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET`. Without them, analyze can return lyrics but stems stay unavailable (503).
-2. **Video export / FFmpeg render** — export button remains a stub.
+2. **Video export polish** — MP4 client export existe (`lib/export-video.ts`); validar browsers y fidelidad visual.
 3. **Stripe production secrets** — checkout path not live.
 4. **Mac local sync** — changes are in the GitHub checkout of `josanager/AK-Studio` on the agent box (`/workspace/AK-Studio`). The Mac path `/Users/josanestrellaflores/Documents/Codex/2026-09-20/sites-plugin-sites-openai-curated-remote` could not be edited: this subagent is box-scoped and `machineId` on Shell/Read is ignored. On the Mac, `git pull` (or copy these files) before verifying the UI.
 
