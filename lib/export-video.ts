@@ -19,6 +19,20 @@ export type ExportAspect = "16:9" | "9:16" | "1:1";
 
 export type ExportLyric = { text: string; start: number; width: number };
 
+export type PreviewTypographyMetrics = {
+  stageWidth: number;
+  stageHeight: number;
+  fontSizePx: number;
+  lineHeightPx: number;
+  letterSpacingPx: number;
+  maxWidthPx: number;
+  lyricHorizontalPaddingPx: number;
+  underlineGapPx: number;
+  fontFamily: string;
+  fontWeight: string;
+  fontStyle: string;
+};
+
 export type ExportVideoOptions = {
   quality: ExportQuality;
   fps: ExportFps;
@@ -37,6 +51,7 @@ export type ExportVideoOptions = {
     color: string;
   };
   textPosition: { x: number; y: number };
+  previewTypography?: PreviewTypographyMetrics;
   track: { title: string; artist: string };
   showFreeBadge?: boolean;
   backingUrl: string | null;
@@ -252,6 +267,7 @@ function paintKaraokeFrame(
     lineHeight: number;
     textStyle: ExportVideoOptions["textStyle"];
     textPosition: { x: number; y: number };
+    previewTypography?: PreviewTypographyMetrics;
     track: { title: string; artist: string };
     showFreeBadge?: boolean;
   },
@@ -277,19 +293,31 @@ function paintKaraokeFrame(
   const lyric = activeLyricAt(opts.lyrics, opts.time, opts.projectDuration);
   if (!lyric) return;
 
-  const fontPx = Math.max(18, Math.round(opts.fontSize * scale));
-  const weight = opts.textStyle.bold ? 700 : 500;
-  const style = opts.textStyle.italic ? "italic" : "normal";
-  ctx.font = `${style} ${weight} ${fontPx}px ${opts.font},sans-serif`;
+  const preview = opts.previewTypography;
+  const previewScale = preview
+    ? Math.min(width / Math.max(1, preview.stageWidth), height / Math.max(1, preview.stageHeight))
+    : scale;
+  const fontPx = Math.max(18, preview ? preview.fontSizePx * previewScale : opts.fontSize * scale);
+  const weight = preview?.fontWeight || (opts.textStyle.bold ? "700" : "500");
+  const style = preview?.fontStyle || (opts.textStyle.italic ? "italic" : "normal");
+  const family = preview?.fontFamily || `${opts.font},sans-serif`;
+  ctx.font = `${style} ${weight} ${fontPx}px ${family}`;
+  if ("letterSpacing" in ctx) {
+    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${(preview?.letterSpacingPx || 0) * previewScale}px`;
+  }
   ctx.fillStyle = opts.textStyle.color || "#fff";
   ctx.textAlign = opts.textStyle.align;
   ctx.textBaseline = "middle";
 
   const cx = (opts.textPosition.x / 100) * width;
   const cy = (opts.textPosition.y / 100) * height;
-  const maxW = width * 0.82;
+  const maxW = preview ? preview.maxWidthPx * previewScale : width * 0.82;
   const lines = wrapText(ctx, lyric.text, maxW);
-  const lineGap = fontPx * (opts.lineHeight || 0.94);
+  const renderedTextWidth = Math.min(
+    maxW,
+    Math.max(0, ...lines.map((line) => ctx.measureText(line).width)),
+  );
+  const lineGap = preview ? preview.lineHeightPx * previewScale : fontPx * (opts.lineHeight || 0.94);
   const blockH = lines.length * lineGap;
   let y = cy - blockH / 2 + lineGap / 2;
   for (const line of lines) {
@@ -314,8 +342,10 @@ function paintKaraokeFrame(
   }
 
   // Progress underline under lyric block (matches stage accent bar)
-  const barY = cy + blockH / 2 + Math.round(18 * scale);
-  const barW = width * 0.56;
+  const barY = cy + blockH / 2 + (preview ? preview.underlineGapPx * previewScale : Math.round(18 * scale));
+  const barW = preview
+    ? (renderedTextWidth + preview.lyricHorizontalPaddingPx * previewScale) * 0.56
+    : width * 0.56;
   const barX = (width - barW) / 2;
   ctx.fillStyle = "#2b2b2b";
   ctx.fillRect(barX, barY, barW, Math.max(2, Math.round(2 * scale)));
@@ -577,6 +607,7 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
     lineHeight: opts.lineHeight,
     textStyle: opts.textStyle,
     textPosition: opts.textPosition,
+    previewTypography: opts.previewTypography,
     track: opts.track,
     showFreeBadge: opts.showFreeBadge,
   };
@@ -746,6 +777,7 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
     lineHeight: opts.lineHeight,
     textStyle: opts.textStyle,
     textPosition: opts.textPosition,
+    previewTypography: opts.previewTypography,
     track: opts.track,
     showFreeBadge: opts.showFreeBadge,
   };
