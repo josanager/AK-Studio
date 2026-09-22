@@ -266,7 +266,8 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
     setDownloadProgress(100);setProgressLabel("Exporting video… 100%");
     window.setTimeout(()=>{setDownloadProgress(null);setProgressLabel(null)},700);
     const kind=savedName.toLowerCase().endsWith(".mp4")||result.mimeType==="video/mp4"?".mp4":savedName.toLowerCase().endsWith(".webm")?".webm":"";
-    setNotice({kind:"success",text:kind===".mp4"?`Exported ${savedName} (.mp4)`:kind===".webm"?`Exported ${savedName} (.webm — MediaRecorder fallback)`:`Exported ${savedName}`});
+    const specs=`${result.width}×${result.height} · ${result.fps}fps`;
+    setNotice({kind:"success",text:kind===".mp4"?`Exported ${savedName} · ${specs}`:kind===".webm"?`Exported ${savedName} · ${specs} (WebM fallback)`:`Exported ${savedName} · ${specs}`});
   }catch(error){
     setNotice({kind:"error",text:error instanceof Error?error.message:"Could not export video."});
     setProgressLabel(null);

@@ -52,6 +52,9 @@ export type ExportVideoResult = {
   filename: string;
   mimeType: string;
   method: "webcodecs" | "mediarecorder";
+  width: number;
+  height: number;
+  fps: ExportFps;
 };
 
 export function resolveExportSize(
@@ -657,6 +660,9 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
     filename: exportFilename(opts.track, "mp4"),
     mimeType: "video/mp4",
     method: "webcodecs",
+    width,
+    height,
+    fps,
   };
 }
 
@@ -834,6 +840,9 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
     filename: exportFilename(opts.track, outExt),
     mimeType: outMime,
     method: "mediarecorder",
+    width,
+    height,
+    fps,
   };
 }
 
@@ -843,43 +852,42 @@ function errorMessage(err: unknown): string {
 }
 
 export async function exportKaraokeVideo(opts: ExportVideoOptions): Promise<ExportVideoResult> {
-  reportProgress(opts, 1);
+  // Never let a fallback move the visible progress bar backwards. If WebCodecs
+  // fails after doing meaningful work, map the recorder fallback into the
+  // remaining percentage instead of restarting the UI at 0–3%.
+  let visibleProgress = 0;
+  const emitProgress = (percent: number) => {
+    const next = Math.max(visibleProgress, Math.max(0, Math.min(100, Math.round(percent))));
+    if (next !== visibleProgress) {
+      visibleProgress = next;
+      opts.onProgress?.(next);
+    }
+  };
+  const primaryOpts: ExportVideoOptions = { ...opts, onProgress: emitProgress };
+  emitProgress(1);
   throwIfAborted(opts.signal);
 
   let webCodecsError: unknown = null;
   if (typeof VideoEncoder !== "undefined") {
     try {
-      return await exportWithWebCodecs(opts);
+      return await exportWithWebCodecs(primaryOpts);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") throw err;
       webCodecsError = err;
-      reportProgress(opts, 2);
-    }
-
-    // Prefer quality Chromium can encode: retry once at 1080/30 rather than
-    // falling straight into a fragile MediaRecorder path (or HTML mis-downloads).
-    if (opts.quality !== "1080" || opts.fps !== 30) {
-      try {
-        reportProgress(opts, 3);
-        return await exportWithWebCodecs({
-          ...opts,
-          quality: "1080",
-          fps: 30,
-        });
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") throw err;
-        webCodecsError = err;
-        reportProgress(opts, 2);
-      }
     }
   }
 
   try {
-    const result = await exportWithMediaRecorder(
-      opts.quality === "1080" && opts.fps === 30
-        ? opts
-        : { ...opts, quality: "1080", fps: 30 },
-    );
+    const fallbackStart = Math.min(95, visibleProgress + 1);
+    emitProgress(fallbackStart);
+    const result = await exportWithMediaRecorder({
+      ...opts,
+      // Preserve the dimensions and frame rate the user selected. A failed
+      // high-resolution export must be reported, never silently downgraded.
+      onProgress: (percent) => emitProgress(
+        fallbackStart + ((100 - fallbackStart) * percent) / 100,
+      ),
+    });
     return result;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
