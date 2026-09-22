@@ -23,7 +23,7 @@ Este documento es la hoja de ruta y el contexto operativo. Léelo antes de tocar
 | Node | **≥ 22.13** (Mac: `PATH="/opt/homebrew/opt/node@22/bin:$PATH"`) |
 | Deploy | En el Mac: `git pull github main && npm run deploy:cloudflare` (remote GitHub suele llamarse `github`) |
 | Migraciones D1 | `npm run db:migrate:cloudflare` |
-| Último commit handoff | `4a8f5a3` + este handoff (ver `git log -1`) |
+| Último commit handoff | `01f7c87` |
 
 **Cloud Agents de Cursor no están en el plan** → trabajo en box + push + deploy Mac. No inventar menús de la app Grok Bot.
 
