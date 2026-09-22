@@ -81,17 +81,140 @@ export function resolveExportSize(
 }
 
 export function sanitizeExportFilename(value: string) {
-  return (
-    (value || "karaoke").replace(/[^\w\s.-]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) ||
-    "karaoke"
-  );
+  const cleaned = (value || "karaoke")
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/[^\w\s.-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[.]+/, "")
+    .slice(0, 80);
+  return cleaned || "karaoke";
 }
 
 export function exportFilename(track: { title: string; artist: string }, ext: string) {
+  const safeExt = (ext || "mp4").replace(/^\.+/, "").toLowerCase() || "mp4";
   const base = sanitizeExportFilename(
     `${track.artist ? `${track.artist} - ` : ""}${track.title || "AK Studio"}`,
   );
-  return `${base}.${ext}`;
+  return `${base}.${safeExt}`;
+}
+
+/** True if bytes look like an ISO BMFF / MP4 file (ftyp box near the start). */
+export function hasMp4Ftyp(bytes: ArrayBuffer | ArrayBufferView, within = 32): boolean {
+  const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const limit = Math.min(view.length - 8, Math.max(8, within));
+  for (let i = 0; i <= limit; i++) {
+    if (
+      view[i + 4] === 0x66 && // f
+      view[i + 5] === 0x74 && // t
+      view[i + 6] === 0x79 && // y
+      view[i + 7] === 0x70 // p
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function looksLikeHtml(bytes: ArrayBuffer | ArrayBufferView): boolean {
+  const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let start = 0;
+  // Skip UTF-8 BOM / leading whitespace
+  if (view.length >= 3 && view[0] === 0xef && view[1] === 0xbb && view[2] === 0xbf) start = 3;
+  while (start < view.length && (view[start] === 0x20 || view[start] === 0x09 || view[start] === 0x0a || view[start] === 0x0d)) {
+    start++;
+  }
+  const head = new TextDecoder("utf-8", { fatal: false })
+    .decode(view.subarray(start, Math.min(view.length, start + 64)))
+    .toLowerCase();
+  return head.startsWith("<!doctype") || head.startsWith("<html") || head.startsWith("<head") || head.startsWith("<?xml");
+}
+
+function hasWebmMagic(bytes: ArrayBuffer | ArrayBufferView): boolean {
+  const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return view.length >= 4 && view[0] === 0x1a && view[1] === 0x45 && view[2] === 0xdf && view[3] === 0xa3;
+}
+
+/**
+ * After finalize: reject empty/corrupt buffers and HTML error documents.
+ * Never allow a download of something that is not a real media container.
+ */
+export async function assertValidExportBlob(
+  blob: Blob,
+  expected: "mp4" | "webm",
+): Promise<Blob> {
+  if (!blob || blob.size < 32) {
+    throw new Error("Export produced an empty or corrupt file. Nothing was downloaded.");
+  }
+  const probe = await blob.slice(0, 64).arrayBuffer();
+  if (looksLikeHtml(probe)) {
+    throw new Error(
+      "Export produced an HTML document instead of a video file. Nothing was downloaded — try again or use 1080p.",
+    );
+  }
+  if (expected === "mp4") {
+    if (!hasMp4Ftyp(probe, 32)) {
+      throw new Error(
+        "Export did not produce a valid MP4 (missing ftyp). Nothing was downloaded — try 1080p / 30fps.",
+      );
+    }
+    // Force correct MIME even if recorder/encoder left it blank or wrong
+    if (blob.type !== "video/mp4") {
+      return new Blob([blob], { type: "video/mp4" });
+    }
+    return blob;
+  }
+  // webm
+  if (!hasWebmMagic(probe)) {
+    throw new Error(
+      "Export did not produce a valid WebM file. Nothing was downloaded — try another browser or 1080p.",
+    );
+  }
+  if (blob.type !== "video/webm") {
+    return new Blob([blob], { type: "video/webm" });
+  }
+  return blob;
+}
+
+/**
+ * Robust client download: always use a File + object URL + <a download>.
+ * Never navigate window.location to the blob (that often saves/opens HTML).
+ */
+export function downloadBlob(blob: Blob, filename: string) {
+  const rawName = (filename || "karaoke.mp4").trim() || "karaoke.mp4";
+  const lower = rawName.toLowerCase();
+  const base = sanitizeExportFilename(rawName.replace(/\.[^.]+$/, "")) || "karaoke";
+  const blobType = (blob.type || "").split(";")[0]!.trim().toLowerCase();
+
+  // Filename extension wins; never mislabel webm as mp4. Default to .mp4.
+  let safeName: string;
+  let mime: string;
+  if (lower.endsWith(".webm")) {
+    safeName = `${base}.webm`;
+    mime = "video/webm";
+  } else if (lower.endsWith(".mp4")) {
+    safeName = `${base}.mp4`;
+    mime = "video/mp4";
+  } else if (blobType === "video/webm") {
+    safeName = `${base}.webm`;
+    mime = "video/webm";
+  } else {
+    safeName = `${base}.mp4`;
+    mime = "video/mp4";
+  }
+
+  const file = new File([blob], safeName, { type: mime });
+  const objectUrl = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = safeName;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+  return safeName;
 }
 
 function lyricSpanSec(line: ExportLyric, projectDuration: number) {
@@ -519,9 +642,15 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
   );
   const buffer = target.buffer;
   if (!buffer || buffer.byteLength < 32) {
-    throw new Error("Export produced an empty file");
+    throw new Error("Export produced an empty or corrupt file");
   }
-  const blob = new Blob([buffer], { type: "video/mp4" });
+  if (looksLikeHtml(buffer) || !hasMp4Ftyp(buffer, 32)) {
+    throw new Error(
+      "Export did not produce a valid MP4 (missing ftyp or HTML payload). Try 1080p / 30fps.",
+    );
+  }
+  let blob = new Blob([buffer], { type: "video/mp4" });
+  blob = await assertValidExportBlob(blob, "mp4");
   reportProgress(opts, 100);
   return {
     blob,
@@ -672,12 +801,38 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
     "Timed out finishing MediaRecorder export.",
     opts.signal,
   );
-  if (!blob.size) throw new Error("Export produced an empty file");
+  if (!blob.size) throw new Error("Export produced an empty or corrupt file");
+  // Prefer the container we actually got (sniff), not only the requested mime.
+  const head = await blob.slice(0, 64).arrayBuffer();
+  let outExt = ext;
+  let outMime = (blob.type || mimeType.split(";")[0] || "").split(";")[0] || "video/webm";
+  if (hasMp4Ftyp(head, 32)) {
+    outExt = "mp4";
+    outMime = "video/mp4";
+  } else if (hasWebmMagic(head)) {
+    outExt = "webm";
+    outMime = "video/webm";
+  } else if (looksLikeHtml(head)) {
+    throw new Error(
+      "MediaRecorder returned an HTML document instead of video. Nothing was downloaded.",
+    );
+  } else if (outExt === "mp4" || outMime.includes("mp4")) {
+    // Claimed mp4 but no ftyp — do not mislabel / download as mp4
+    throw new Error(
+      "MediaRecorder did not produce a valid MP4. Nothing was downloaded — try Chrome at 1080p.",
+    );
+  } else {
+    throw new Error(
+      "MediaRecorder did not produce a valid video file. Nothing was downloaded — try Chrome at 1080p.",
+    );
+  }
+  let outBlob = new Blob([blob], { type: outMime });
+  outBlob = await assertValidExportBlob(outBlob, outExt === "mp4" ? "mp4" : "webm");
   reportProgress(opts, 100);
   return {
-    blob,
-    filename: exportFilename(opts.track, ext),
-    mimeType: blob.type || mimeType.split(";")[0]!,
+    blob: outBlob,
+    filename: exportFilename(opts.track, outExt),
+    mimeType: outMime,
     method: "mediarecorder",
   };
 }
@@ -700,10 +855,32 @@ export async function exportKaraokeVideo(opts: ExportVideoOptions): Promise<Expo
       webCodecsError = err;
       reportProgress(opts, 2);
     }
+
+    // Prefer quality Chromium can encode: retry once at 1080/30 rather than
+    // falling straight into a fragile MediaRecorder path (or HTML mis-downloads).
+    if (opts.quality !== "1080" || opts.fps !== 30) {
+      try {
+        reportProgress(opts, 3);
+        return await exportWithWebCodecs({
+          ...opts,
+          quality: "1080",
+          fps: 30,
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") throw err;
+        webCodecsError = err;
+        reportProgress(opts, 2);
+      }
+    }
   }
 
   try {
-    return await exportWithMediaRecorder(opts);
+    const result = await exportWithMediaRecorder(
+      opts.quality === "1080" && opts.fps === 30
+        ? opts
+        : { ...opts, quality: "1080", fps: 30 },
+    );
+    return result;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
     const fallback = errorMessage(err);

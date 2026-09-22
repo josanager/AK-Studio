@@ -7,7 +7,7 @@ import {cachedAudioUrl,revokeAudioUrl} from "../lib/audio-cache";
 import {computeAudioPeaks} from "../lib/audio-peaks";
 import {WaveformTrack} from "../components/waveform-track";
 import type {SavedProjectSummary,StudioProjectState} from "../lib/studio-project";
-import {canExportVideoRoughly,exportKaraokeVideo,type ExportFps,type ExportQuality} from "../lib/export-video";
+import {canExportVideoRoughly,downloadBlob,exportKaraokeVideo,type ExportFps,type ExportQuality} from "../lib/export-video";
 type Lyric={text:string;start:number;width:number}; type Track={title:string;artist:string}; type ApiLyric={text:string;start:number;end:number};
 const formatTime=(seconds:number)=>{const whole=Math.round(seconds);return`${Math.floor(whole/60)}:${String(whole%60).padStart(2,"0")}`};
 const youtubeHosts=new Set(["youtube.com","www.youtube.com","music.youtube.com","youtu.be","m.youtube.com"]);
@@ -262,12 +262,11 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
       includeVocal:includeVocal&&!forceBacking,
       onProgress:(n)=>{setDownloadProgress(n);setProgressLabel(`Exporting video… ${n}%`)},
     });
-    const objectUrl=URL.createObjectURL(result.blob);
-    const a=document.createElement("a");a.href=objectUrl;a.download=result.filename;document.body.appendChild(a);a.click();a.remove();
-    window.setTimeout(()=>URL.revokeObjectURL(objectUrl),4000);
+    const savedName=downloadBlob(result.blob, result.filename);
     setDownloadProgress(100);setProgressLabel("Exporting video… 100%");
     window.setTimeout(()=>{setDownloadProgress(null);setProgressLabel(null)},700);
-    setNotice({kind:"success",text:`Exported ${result.filename} (${result.method==="webcodecs"?"MP4":"stream"})`});
+    const kind=savedName.toLowerCase().endsWith(".mp4")||result.mimeType==="video/mp4"?".mp4":savedName.toLowerCase().endsWith(".webm")?".webm":"";
+    setNotice({kind:"success",text:kind===".mp4"?`Exported ${savedName} (.mp4)`:kind===".webm"?`Exported ${savedName} (.webm — MediaRecorder fallback)`:`Exported ${savedName}`});
   }catch(error){
     setNotice({kind:"error",text:error instanceof Error?error.message:"Could not export video."});
     setProgressLabel(null);

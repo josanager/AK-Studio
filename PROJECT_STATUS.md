@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (export progress 0% fix + distinct status strings)
+Actualizado: 22 de septiembre de 2026 (export HTML→MP4 download fix)
 
 ## Ubicaciones
 
@@ -37,6 +37,14 @@ Actualizado: 22 de septiembre de 2026 (export progress 0% fix + distinct status 
 
 
 
+
+## Fix: export downloaded HTML instead of MP4 (22 Sep 2026)
+
+**Root cause:** Export “succeeded” and triggered a download without validating container bytes. Weak `<a download>` (raw Blob, no forced `.mp4` File/MIME) let browsers save error/HTML payloads or miss-extension files as `.html`. 4K WebCodecs failures fell straight to MediaRecorder without a 1080 retry.
+
+**Fix:** After finalize, require MP4 `ftyp` within ~32 bytes (reject `<!DOCTYPE`/`<html`); `downloadBlob` uses `File` + `video/mp4` + forced `.mp4` (or `.webm` only when sniff says WebM); WebCodecs→retry 1080/30 once; success copy says `.mp4`.
+
+Files: `lib/export-video.ts`, `app/studio.tsx`, `PROJECT_STATUS.md`.
 
 ## Fix: video export stuck at 0% + wrong status text (22 Sep 2026)
 
