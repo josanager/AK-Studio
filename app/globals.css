@@ -437,7 +437,7 @@ html:has(.ak-shell) body{
 /* Waveform fills the entire clip width (same span as lyrics track) */
 .wave-track{
   left:0;
-  right:auto;
+  right:0;
   width:100%;
   padding:0;
   gap:1px;

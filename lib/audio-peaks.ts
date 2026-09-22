@@ -1,6 +1,13 @@
 /** Decode an audio URL and return normalized peak magnitudes (0–1) across the full buffer. */
-export async function computeAudioPeaks(url: string, barCount = 1000): Promise<number[]> {
-  if (!url || typeof window === "undefined") return [];
+
+export type AudioPeaksResult = {
+  peaks: number[];
+  /** Decoded AudioBuffer duration in seconds. */
+  duration: number;
+};
+
+export async function computeAudioPeaks(url: string, barCount = 1000): Promise<AudioPeaksResult> {
+  if (!url || typeof window === "undefined") return { peaks: [], duration: 0 };
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Audio fetch failed (${response.status})`);
   const arrayBuffer = await response.arrayBuffer();
@@ -10,7 +17,10 @@ export async function computeAudioPeaks(url: string, barCount = 1000): Promise<n
   const ctx = new AC();
   try {
     const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
-    return peaksFromAudioBuffer(buffer, barCount);
+    return {
+      peaks: peaksFromAudioBuffer(buffer, barCount),
+      duration: Number.isFinite(buffer.duration) ? buffer.duration : 0,
+    };
   } finally {
     void ctx.close().catch(() => undefined);
   }

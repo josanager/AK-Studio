@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (sticky playhead + D1 project autosave 24h)
+Actualizado: 22 de septiembre de 2026 (delete drafts + Space play/pause + full-span waveform)
 
 ## Ubicaciones
 
@@ -289,3 +289,15 @@ Self-hosted Cobalt is preferred over random public instances (ToS / reliability)
 
 ### Files
 `lib/youtube-download.ts`, `app/api/audio/route.ts`, `app/api/audio/[id]/route.ts`, `app/studio.tsx`, `app/globals.css`, `processor/server.py`, `processor/worker.ts`, `.dev.vars.example`, `PROJECT_STATUS.md`
+
+
+## Studio bugs: delete / Space / waveform span (22 Sep 2026)
+
+1. **Saved delete** — Trash on Saved cards calls `DELETE /api/projects/[id]` with `stopPropagation`, optimistic list remove, auth/error handling, and refetch. Deleting the open draft clears editor state and sets `skipSaveRef` so autosave cannot immediately recreate the free slot. API returns 404 when no row was removed.
+2. **Spacebar** — Global `keydown` toggles play/pause when `backingSrc` exists and focus is not in `input` / `textarea` / `select` / `contenteditable`; `preventDefault` blocks page scroll.
+3. **Waveform span** — Root cause: `WaveformTrack` pinned `width` to the zoom `minWidth` px (~410px) while `.lyric-track` stretched to the full canvas as 0→duration, so the grey clip ended around ~1:02. Fix: stretch like lyrics (`width:100%` + `minWidth`), track `audioDuration` from `loadedmetadata` + decoded `AudioBuffer`, timeline = `max(lyrics end, audio duration)`, clip `widthPercent = audio/timeline`.
+
+Files: `app/studio.tsx`, `components/waveform-track.tsx`, `lib/audio-peaks.ts`, `app/globals.css`, `app/api/projects/[id]/route.ts`, `PROJECT_STATUS.md`.
+
+**Verify:** Saved trash empties the list (Free slot free again); Space toggles Play with audio loaded and does nothing while typing in the link/lyric fields; waveform grey box spans to the song end with lyrics. Do not commit/push from this pass.
+

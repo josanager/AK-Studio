@@ -45,6 +45,10 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   await ensureAppUser(user);
   const { id } = await context.params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ error: "Not found." }, { status: 404 });
-  await env.DB.prepare("DELETE FROM projects WHERE id=? AND user_id=?").bind(id, user.userId).run();
-  return Response.json({ ok: true });
+  const result = await env.DB.prepare("DELETE FROM projects WHERE id=? AND user_id=?")
+    .bind(id, user.userId)
+    .run();
+  const removed = Number((result as { meta?: { changes?: number }; changes?: number }).meta?.changes ?? (result as { changes?: number }).changes ?? 0);
+  if (removed < 1) return Response.json({ error: "Project not found." }, { status: 404 });
+  return Response.json({ ok: true, deleted: id });
 }
