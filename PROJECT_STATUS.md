@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (delete drafts + Space play/pause + full-span waveform)
+Actualizado: 22 de septiembre de 2026 (lyric clip timeline sync + prior studio bugfixes)
 
 ## Ubicaciones
 
@@ -300,4 +300,19 @@ Self-hosted Cobalt is preferred over random public instances (ToS / reliability)
 Files: `app/studio.tsx`, `components/waveform-track.tsx`, `lib/audio-peaks.ts`, `app/globals.css`, `app/api/projects/[id]/route.ts`, `PROJECT_STATUS.md`.
 
 **Verify:** Saved trash empties the list (Free slot free again); Space toggles Play with audio loaded and does nothing while typing in the link/lyric fields; waveform grey box spans to the song end with lyrics. Do not commit/push from this pass.
+
+
+## Timeline lyric clip positions (22 Sep 2026)
+
+**Bug:** Canvas karaoke matched audio, but timeline lyric blocks were shifted/stretched (e.g. playhead ~1:10 while active “Oh” sat under ~2:04).
+
+**Root cause:**
+1. Hit-target CSS overrode `.lyric-track button` to `position: relative`, breaking absolute `left`/`width` % layout — clips flowed and accumulated horizontal offset.
+2. Clip `width` was applied as the stored `%` of an older duration, and scrub/active time used `duration` while playhead display used `timelineDuration`.
+
+**Fix:** Restore `position: absolute`; stretch `.lyric-track` like waveforms (`width:100%` + zoom `minWidth`); position every clip as `left = start/timelineDuration*100%`, `width = spanSec/timelineDuration*100%` with the same `timelineDuration` as the playhead (`max(lyricsEnd, audioDuration, …)`); unify scrub / drag / `onTimeUpdate` / active highlight on that time base. New analyzes store true width % (no 2–20 clamp); CSS `min-width` keeps hit targets.
+
+**Verify:** Play to a short word — black clip sits under the playhead; ruler time matches transport; drag clips, scrub, Space, waveforms, autosave still work. Do not commit/push from this pass.
+
+Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
