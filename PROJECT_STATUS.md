@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (lead vocal separate + export audio)
+Actualizado: 22 de septiembre de 2026 (stem menu hit-target + waveform separate progress)
 
 ## Ubicaciones
 
@@ -44,6 +44,8 @@ Actualizado: 22 de septiembre de 2026 (lead vocal separate + export audio)
 - API: `POST /api/audio/separate` body `{ audioId, url? }` → NDJSON progress (same shape as create karaoke). Prefer signed R2 `audioUrl` to the GPU `/process` (no YouTube re-download when the processor can fetch it); falls back to YouTube `url`.
 - Lead vocal track (head + waveform) stays **hidden** until `vocalSrc` exists; full mix plays on backing before separation.
 - Friendly 503 copy when GPU/separator missing: “Stem separation needs the GPU processor. Full mix still plays.”
+- **Menu UX (22 Sep):** solid hit surface (`pointer-events:auto`, opaque bg, `stopPropagation` on menu/button); transparent full-viewport backdrop while open; timeline scrub / playhead / lyric drag gated by `!stemMenuOpen && !separating` (dismiss via outside click / Escape).
+- **Separate progress:** NDJSON % also drives a left→right `.wave-fill` overlay on the backing `WaveformTrack` (same style as the source-bar fill), until stems finish or error.
 
 ### B) Export (not a paywall)
 - Export menu: **Download audio** (current full-mix/backing file, sensible filename) works for Free/Pro.

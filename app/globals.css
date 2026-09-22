@@ -849,16 +849,23 @@ html:has(.ak-shell) body{
 .export-menu-panel button:disabled{opacity:.55;cursor:not-allowed}
 .export-menu-panel button svg{width:15px;height:15px}
 .export-menu-panel i{margin-left:auto;font-style:normal;font-size:10px;color:#888}
+.stem-menu-backdrop{
+  position:fixed;inset:0;z-index:45;background:transparent;cursor:default;
+  pointer-events:auto;touch-action:none;
+}
 .stem-context-menu{
-  position:fixed;z-index:50;min-width:180px;background:#fff;border:1px solid #111;
-  box-shadow:4px 4px 0 #111;padding:4px;display:grid;
+  position:fixed;z-index:60;min-width:200px;background:#fff;border:1px solid #111;
+  box-shadow:4px 4px 0 #111;padding:4px;display:grid;gap:0;
+  pointer-events:auto;isolation:isolate;
 }
 .stem-context-menu button{
-  border:0;background:transparent;min-height:34px;padding:0 10px;text-align:left;
-  font-size:12px;border-radius:3px;width:100%;
+  border:0;background:#fff;min-height:36px;padding:0 12px;text-align:left;
+  font-size:12px;border-radius:3px;width:100%;cursor:pointer;
+  pointer-events:auto;position:relative;z-index:1;
 }
 .stem-context-menu button:hover:not(:disabled){background:#f0f0ec}
 .stem-context-menu button:disabled{opacity:.45;cursor:not-allowed}
+.track-canvas.is-locked{cursor:default}
 .wave-track.interactive{pointer-events:auto;cursor:context-menu;z-index:3}
 .wave-track.interactive:hover{box-shadow:inset 0 0 0 1px #b9b9b2}
 .wave-track.interactive:hover:after{
@@ -867,5 +874,13 @@ html:has(.ak-shell) body{
   font-size:9px;letter-spacing:.02em;color:#555;background:#ffffffd9;
   padding:2px 6px;border-radius:3px;pointer-events:none;white-space:nowrap;
 }
+/* Separation progress fill across the backing waveform (mirrors source-bar-fill) */
+.wave-track .wave-fill{
+  position:absolute;inset:0 auto 0 0;width:0;height:100%;
+  background:linear-gradient(90deg,#e8e8e3,#d2d2cc);
+  transition:width .2s ease;z-index:0;pointer-events:none;
+}
+.wave-track.is-separating .wave-fill{background:linear-gradient(90deg,#deded8,#c8c8c1)}
+.wave-track > i{position:relative;z-index:1}
 .track-heads.no-vocal ~ .track-canvas .wave-track.backing{/* same position */}
 .timeline-body:has(.track-heads.no-vocal){/* keep height stable */}
