@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (karaoke video export + quality/FPS canvas chip)
+Actualizado: 22 de septiembre de 2026 (export progress 0% fix + distinct status strings)
 
 ## Ubicaciones
 
@@ -36,6 +36,17 @@ Actualizado: 22 de septiembre de 2026 (karaoke video export + quality/FPS canvas
 
 
 
+
+
+## Fix: video export stuck at 0% + wrong status text (22 Sep 2026)
+
+**Root cause (0%):** `lib/export-video.ts` encoded *all* mixed audio via mediabunny `AudioBufferSource` **before** any video frames, and only called `onProgress` inside the frame loop. Decode + full-song AAC encode could take a long time (or hang) with the UI frozen near 1%/“0%”. WebCodecs errors were also swallowed before MediaRecorder fallback, and there were no timeouts on encoder start / audio decode.
+
+**Root cause (wrong label):** Export, Separate, and Create karaoke all shared `downloadProgress` / `progressLabel`. When Separate ran (or cleared state) while export was still `exporting`, the source-bar fallback showed **“Fetching lyrics…”** because `progressLabel` was null and `downloadProgress < 2`.
+
+**Fix:** Interleaved A/V chunks with continuous progress (decode → frames 0→100%), timeouts + clearer fallback errors, distinct English status strings (`Exporting video… N%` / `Separating lead vocal… N%` / `Downloading song… N%` / lyrics only during analyze), and mutual exclusion (disable Separate while exporting and Export while separating).
+
+Files: `lib/export-video.ts`, `app/studio.tsx`, `PROJECT_STATUS.md`.
 
 ## Lead vocal separate + Export audio (22 Sep 2026)
 

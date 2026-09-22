@@ -220,6 +220,47 @@ function wrapText(
   return lines.slice(0, 6);
 }
 
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
+}
+
+function reportProgress(opts: ExportVideoOptions, percent: number) {
+  opts.onProgress?.(Math.max(0, Math.min(100, Math.round(percent))));
+}
+
+async function yieldToUi() {
+  await new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+  signal?: AbortSignal,
+): Promise<T> {
+  throwIfAborted(signal);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  const onAbort = () => {
+    if (timer) clearTimeout(timer);
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
 async function decodeAudioUrl(url: string, ctx: BaseAudioContext): Promise<AudioBuffer | null> {
   try {
     const res = await fetch(url);
@@ -260,22 +301,52 @@ function mixAudioBuffers(
   return out;
 }
 
-async function buildMixedAudio(opts: ExportVideoOptions): Promise<AudioBuffer | null> {
+async function buildMixedAudio(
+  opts: ExportVideoOptions,
+  onPhaseProgress?: (fraction: number) => void,
+): Promise<AudioBuffer | null> {
   if (!opts.backingUrl && !opts.vocalUrl) return null;
   const probe = new AudioContext();
   try {
+    if (probe.state === "suspended") {
+      await probe.resume().catch(() => undefined);
+    }
     const parts: { buffer: AudioBuffer; gain: number }[] = [];
+    const jobs: { url: string; gain: number; label: string }[] = [];
     if (opts.backingUrl && opts.includeBacking) {
-      const b = await decodeAudioUrl(opts.backingUrl, probe);
-      if (b) parts.push({ buffer: b, gain: 1 });
+      jobs.push({ url: opts.backingUrl, gain: 1, label: "backing" });
     }
     if (opts.vocalUrl && opts.includeVocal) {
-      const v = await decodeAudioUrl(opts.vocalUrl, probe);
-      if (v) parts.push({ buffer: v, gain: 1 });
+      jobs.push({ url: opts.vocalUrl, gain: 1, label: "vocal" });
+    }
+    if (jobs.length === 0) {
+      onPhaseProgress?.(1);
+      return probe.createBuffer(
+        2,
+        Math.max(1, Math.ceil(opts.durationSec * probe.sampleRate)),
+        probe.sampleRate,
+      );
+    }
+    for (let i = 0; i < jobs.length; i++) {
+      throwIfAborted(opts.signal);
+      onPhaseProgress?.(i / Math.max(jobs.length, 1));
+      const job = jobs[i]!;
+      const decoded = await withTimeout(
+        decodeAudioUrl(job.url, probe),
+        90_000,
+        `Timed out decoding ${job.label} audio for export.`,
+        opts.signal,
+      );
+      if (decoded) parts.push({ buffer: decoded, gain: job.gain });
+      onPhaseProgress?.((i + 1) / Math.max(jobs.length, 1));
+      await yieldToUi();
     }
     if (parts.length === 0) {
-      // Silent buffer so video still has an audio track length
-      return probe.createBuffer(2, Math.max(1, Math.ceil(opts.durationSec * probe.sampleRate)), probe.sampleRate);
+      return probe.createBuffer(
+        2,
+        Math.max(1, Math.ceil(opts.durationSec * probe.sampleRate)),
+        probe.sampleRate,
+      );
     }
     return mixAudioBuffers(probe, parts, opts.durationSec);
   } finally {
@@ -283,32 +354,51 @@ async function buildMixedAudio(opts: ExportVideoOptions): Promise<AudioBuffer | 
   }
 }
 
-function throwIfAborted(signal?: AbortSignal) {
-  if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
+function sliceAudioBuffer(source: AudioBuffer, startSec: number, lengthSec: number): AudioBuffer {
+  const start = Math.max(0, Math.floor(startSec * source.sampleRate));
+  const frames = Math.max(1, Math.floor(lengthSec * source.sampleRate));
+  const slice = new AudioBuffer({
+    length: frames,
+    numberOfChannels: source.numberOfChannels,
+    sampleRate: source.sampleRate,
+  });
+  for (let c = 0; c < source.numberOfChannels; c++) {
+    const channel = source.getChannelData(c);
+    const end = Math.min(channel.length, start + frames);
+    if (end > start) {
+      slice.copyToChannel(channel.subarray(start, end), c);
+    }
+  }
+  return slice;
 }
 
 async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVideoResult> {
   const { width, height } = resolveExportSize(opts.quality, opts.aspect);
   const fps = opts.fps;
-  const durationSec = Math.max(0.5, opts.durationSec);
+  const durationSec = Math.max(0.5, Number.isFinite(opts.durationSec) ? opts.durationSec : 0.5);
   const frameCount = Math.max(1, Math.ceil(durationSec * fps));
   const frameDur = 1 / fps;
 
-  const canVideo =
-    typeof VideoEncoder !== "undefined" &&
-    (await canEncodeVideo("avc", { width, height, bitrate: 8_000_000 }));
-  if (!canVideo) throw new Error("WebCodecs AVC unavailable");
+  reportProgress(opts, 2);
 
-  let canvas: HTMLCanvasElement | OffscreenCanvas;
-  if (typeof OffscreenCanvas !== "undefined") {
-    canvas = new OffscreenCanvas(width, height);
-  } else {
-    const el = document.createElement("canvas");
-    el.width = width;
-    el.height = height;
-    canvas = el;
+  const canVideo = await withTimeout(
+    canEncodeVideo("avc", { width, height, bitrate: 8_000_000 }),
+    15_000,
+    "Timed out checking WebCodecs video support.",
+    opts.signal,
+  );
+  if (
+    typeof VideoEncoder === "undefined" ||
+    !canVideo
+  ) {
+    throw new Error("WebCodecs AVC unavailable");
   }
-  const ctx = canvas.getContext("2d");
+
+  // Prefer a DOM canvas — VideoFrame + MediaRecorder paths are more reliable than OffscreenCanvas alone.
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
   if (!ctx) throw new Error("Could not create export canvas");
 
   const quality =
@@ -317,6 +407,13 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
       : opts.quality === "2K"
         ? QUALITY_HIGH
         : QUALITY_MEDIUM;
+
+  reportProgress(opts, 4);
+  const mixed = await buildMixedAudio(opts, (fraction) => {
+    reportProgress(opts, 4 + fraction * 12);
+  });
+  throwIfAborted(opts.signal);
+  reportProgress(opts, 16);
 
   const target = new BufferTarget();
   const output = new Output({
@@ -331,41 +428,24 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
   });
   output.addVideoTrack(videoSource, { frameRate: fps });
 
-  const mixed = await buildMixedAudio(opts);
   let audioSource: AudioBufferSource | null = null;
   if (mixed && (await canEncodeAudio("aac"))) {
     audioSource = new AudioBufferSource({ codec: "aac", quality: QUALITY_HIGH });
     output.addAudioTrack(audioSource);
   }
 
-  await output.start();
+  await withTimeout(
+    output.start(),
+    20_000,
+    "Timed out starting the video encoder. Try 1080p or another browser.",
+    opts.signal,
+  );
   throwIfAborted(opts.signal);
-
-  if (audioSource && mixed) {
-    // Slice mixed audio into ~2s chunks for backpressure-friendly adds
-    const chunkSec = 2;
-    let t = 0;
-    while (t < mixed.duration - 0.001) {
-      throwIfAborted(opts.signal);
-      const len = Math.min(chunkSec, mixed.duration - t);
-      const start = Math.floor(t * mixed.sampleRate);
-      const frames = Math.max(1, Math.floor(len * mixed.sampleRate));
-      const slice = new AudioBuffer({
-        length: frames,
-        numberOfChannels: mixed.numberOfChannels,
-        sampleRate: mixed.sampleRate,
-      });
-      for (let c = 0; c < mixed.numberOfChannels; c++) {
-        slice.copyToChannel(mixed.getChannelData(c).subarray(start, start + frames), c);
-      }
-      await audioSource.add(slice);
-      t += len;
-    }
-  }
+  reportProgress(opts, 18);
 
   const paintOpts = {
     lyrics: opts.lyrics,
-    projectDuration: opts.projectDuration,
+    projectDuration: Math.max(opts.projectDuration, durationSec, 1),
     font: opts.font,
     fontSize: opts.fontSize,
     lineHeight: opts.lineHeight,
@@ -375,20 +455,74 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
     showFreeBadge: opts.showFreeBadge,
   };
 
+  // Interleave audio + video in ~1s chunks so:
+  // 1) progress moves immediately (no silent "encode all audio first" stall)
+  // 2) MP4 packet buffering stays bounded
+  const chunkSec = 1;
+  let audioCursor = 0;
+  const audioDuration = mixed && audioSource ? Math.min(mixed.duration, durationSec) : 0;
+
   for (let i = 0; i < frameCount; i++) {
     throwIfAborted(opts.signal);
     const time = Math.min(durationSec, i * frameDur);
+
+    // Catch audio up to the current video timestamp (+1 chunk ahead)
+    if (audioSource && mixed && audioCursor < audioDuration - 0.0005) {
+      const targetAudio = Math.min(audioDuration, Math.floor(time / chunkSec + 1) * chunkSec);
+      while (audioCursor < targetAudio - 0.0005) {
+        throwIfAborted(opts.signal);
+        const len = Math.min(chunkSec, audioDuration - audioCursor);
+        const slice = sliceAudioBuffer(mixed, audioCursor, len);
+        await audioSource.add(slice);
+        audioCursor += len;
+      }
+    }
+
     paintKaraokeFrame(ctx, width, height, { ...paintOpts, time });
     await videoSource.add(time, frameDur);
-    if (i % 8 === 0 || i === frameCount - 1) {
-      opts.onProgress?.(Math.round(((i + 1) / frameCount) * 100));
+
+    if (i === 0 || i % 4 === 0 || i === frameCount - 1) {
+      // Video frames own 18→96%
+      reportProgress(opts, 18 + ((i + 1) / frameCount) * 78);
+      if (i % 12 === 0) await yieldToUi();
     }
   }
 
-  await output.finalize();
+  // Flush any remaining audio tail
+  if (audioSource && mixed && audioCursor < audioDuration - 0.0005) {
+    while (audioCursor < audioDuration - 0.0005) {
+      throwIfAborted(opts.signal);
+      const len = Math.min(chunkSec, audioDuration - audioCursor);
+      const slice = sliceAudioBuffer(mixed, audioCursor, len);
+      await audioSource.add(slice);
+      audioCursor += len;
+    }
+  }
+
+  try {
+    audioSource?.close();
+  } catch {
+    /* optional */
+  }
+  try {
+    videoSource.close();
+  } catch {
+    /* optional */
+  }
+
+  reportProgress(opts, 97);
+  await withTimeout(
+    output.finalize(),
+    120_000,
+    "Timed out finalizing the MP4 file.",
+    opts.signal,
+  );
   const buffer = target.buffer;
-  if (!buffer) throw new Error("Export produced an empty file");
-  const blob = new Blob([buffer], { type: "video/mp4" }); // ArrayBuffer from BufferTarget
+  if (!buffer || buffer.byteLength < 32) {
+    throw new Error("Export produced an empty file");
+  }
+  const blob = new Blob([buffer], { type: "video/mp4" });
+  reportProgress(opts, 100);
   return {
     blob,
     filename: exportFilename(opts.track, "mp4"),
@@ -417,17 +551,26 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
   }
   const { width, height } = resolveExportSize(opts.quality, opts.aspect);
   const fps = opts.fps;
-  const durationSec = Math.max(0.5, opts.durationSec);
+  const durationSec = Math.max(0.5, Number.isFinite(opts.durationSec) ? opts.durationSec : 0.5);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Could not create export canvas");
 
+  reportProgress(opts, 3);
   const stream = canvas.captureStream(fps);
   const audioCtx = new AudioContext();
+  if (audioCtx.state === "suspended") {
+    await audioCtx.resume().catch(() => undefined);
+  }
   const dest = audioCtx.createMediaStreamDestination();
-  const mixed = await buildMixedAudio(opts);
+  const mixed = await buildMixedAudio(opts, (fraction) => {
+    reportProgress(opts, 3 + fraction * 10);
+  });
+  throwIfAborted(opts.signal);
+  reportProgress(opts, 14);
+
   let sourceNode: AudioBufferSourceNode | null = null;
   if (mixed) {
     sourceNode = audioCtx.createBufferSource();
@@ -438,11 +581,16 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
 
   const { mimeType, ext } = pickRecorderMime();
   const chunks: Blob[] = [];
-  const recorder = new MediaRecorder(stream, {
-    mimeType,
-    videoBitsPerSecond:
-      opts.quality === "4K" ? 35_000_000 : opts.quality === "2K" ? 16_000_000 : 8_000_000,
-  });
+  let recorder: MediaRecorder;
+  try {
+    recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond:
+        opts.quality === "4K" ? 35_000_000 : opts.quality === "2K" ? 16_000_000 : 8_000_000,
+    });
+  } catch {
+    recorder = new MediaRecorder(stream);
+  }
   recorder.ondataavailable = (e) => {
     if (e.data.size > 0) chunks.push(e.data);
   };
@@ -457,7 +605,7 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
 
   const paintOpts = {
     lyrics: opts.lyrics,
-    projectDuration: opts.projectDuration,
+    projectDuration: Math.max(opts.projectDuration, durationSec, 1),
     font: opts.font,
     fontSize: opts.fontSize,
     lineHeight: opts.lineHeight,
@@ -469,6 +617,13 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
 
   const start = performance.now();
   await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (err?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else resolve();
+    };
     const tick = () => {
       if (opts.signal?.aborted) {
         try {
@@ -476,30 +631,49 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
         } catch {
           /* ignore */
         }
-        reject(new DOMException("Export cancelled", "AbortError"));
+        finish(new DOMException("Export cancelled", "AbortError"));
         return;
       }
       const elapsed = (performance.now() - start) / 1000;
       const time = Math.min(durationSec, elapsed);
       paintKaraokeFrame(ctx, width, height, { ...paintOpts, time });
-      opts.onProgress?.(Math.min(99, Math.round((elapsed / durationSec) * 100)));
+      reportProgress(opts, 14 + Math.min(85, (elapsed / durationSec) * 85));
       if (elapsed >= durationSec) {
-        resolve();
+        finish();
         return;
       }
-      requestAnimationFrame(tick);
+      // Prefer rAF for smooth capture; fall back to setTimeout so a background tab still advances.
+      if (typeof requestAnimationFrame === "function" && !document.hidden) {
+        requestAnimationFrame(tick);
+      } else {
+        setTimeout(tick, Math.max(8, 1000 / fps));
+      }
     };
-    requestAnimationFrame(tick);
+    tick();
   });
 
-  await new Promise((r) => setTimeout(r, 120));
-  recorder.stop();
-  sourceNode?.stop();
+  await new Promise((r) => setTimeout(r, 160));
+  try {
+    if (recorder.state !== "inactive") recorder.stop();
+  } catch {
+    /* ignore */
+  }
+  try {
+    sourceNode?.stop();
+  } catch {
+    /* ignore */
+  }
   await audioCtx.close().catch(() => undefined);
   for (const t of stream.getTracks()) t.stop();
 
-  const blob = await done;
-  opts.onProgress?.(100);
+  const blob = await withTimeout(
+    done,
+    30_000,
+    "Timed out finishing MediaRecorder export.",
+    opts.signal,
+  );
+  if (!blob.size) throw new Error("Export produced an empty file");
+  reportProgress(opts, 100);
   return {
     blob,
     filename: exportFilename(opts.track, ext),
@@ -508,20 +682,35 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
   };
 }
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return "Could not export video.";
+}
+
 export async function exportKaraokeVideo(opts: ExportVideoOptions): Promise<ExportVideoResult> {
-  opts.onProgress?.(1);
-  try {
-    if (typeof VideoEncoder !== "undefined") {
-      try {
-        return await exportWithWebCodecs(opts);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") throw err;
-        // Fall through to MediaRecorder
-      }
+  reportProgress(opts, 1);
+  throwIfAborted(opts.signal);
+
+  let webCodecsError: unknown = null;
+  if (typeof VideoEncoder !== "undefined") {
+    try {
+      return await exportWithWebCodecs(opts);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      webCodecsError = err;
+      reportProgress(opts, 2);
     }
+  }
+
+  try {
     return await exportWithMediaRecorder(opts);
-  } finally {
-    opts.onProgress?.(100);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    const fallback = errorMessage(err);
+    if (webCodecsError) {
+      throw new Error(`${errorMessage(webCodecsError)} (fallback also failed: ${fallback})`);
+    }
+    throw err instanceof Error ? err : new Error(fallback);
   }
 }
 
