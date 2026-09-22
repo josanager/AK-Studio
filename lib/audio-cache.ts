@@ -28,7 +28,7 @@ export async function cachedAudioUrl(url: string): Promise<string> {
     if (!response.ok) return url;
     const blob = await response.blob();
     const headers = new Headers();
-    headers.set("content-type", blob.type || "audio/flac");
+    headers.set("content-type", blob.type || "audio/mp4");
     headers.set("x-ak-cached-at", String(Date.now()));
     headers.set("cache-control", "private, max-age=86400");
     await cache.put(abs, new Response(blob.slice(), { status: 200, headers }));

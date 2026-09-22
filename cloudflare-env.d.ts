@@ -10,6 +10,8 @@ declare namespace Cloudflare {
     MASTER_ENCRYPTION_KEY?: string;
     PROCESSOR_WEBHOOK_SECRET?: string;
     GPU_PROCESSOR_URL?: string;
+    COBALT_API_URL?: string;
+    COBALT_API_KEY?: string;
     BETTER_AUTH_URL: string;
     BETTER_AUTH_SECRET: string;
     GOOGLE_CLIENT_ID: string;

@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 21 de septiembre de 2026 (Stripe Checkout + webhook en modo prueba)
+Actualizado: 22 de septiembre de 2026 (Create karaoke full-mix download + playback; Stripe Checkout + webhook en prueba)
 
 ## Ubicaciones
 
@@ -79,7 +79,7 @@ Actualizado: 21 de septiembre de 2026 (Stripe Checkout + webhook en modo prueba)
 
 Estas funciones no deben anunciarse como operativas en producción hasta completar sus dependencias:
 
-1. **Procesamiento real de audio.** El procesador GPU/contenedor todavía debe desplegarse y conectarse mediante `GPU_PROCESSOR_URL` y `PROCESSOR_WEBHOOK_SECRET`. Por esto, pegar un enlace ya detecta metadatos y letra, pero todavía no descarga ni separa la canción en el sitio público.
+1. **Separación de stems (GPU).** Create karaoke ya descarga el **full mix** a R2 y lo pone en la timeline para Play sin GPU. La separación lead/backing con BS-RoFormer sigue pendiente de `GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET`.
 2. **Exportación de vídeo.** El botón y la interfaz existen, pero falta el render final con FFmpeg, la marca de agua del plan Free y la descarga del archivo terminado.
 3. **Stripe Live.** El flujo completo funciona en modo prueba. Para aceptar dinero real falta verificar la empresa y configurar las credenciales, producto/precio y webhook equivalentes en modo Live.
 4. **Separación premium.** BS-RoFormer está previsto para Free; Moises.ai o Music.ai siguen pendientes de proveedor y clave para Pro.
@@ -213,3 +213,18 @@ Replaced the decorative 124-bar stub in `app/studio.tsx` with real peaks:
 **Verify:** create karaoke with working audio → backing/vocal waveforms span full timeline (match lyric span); zoom changes density/width; mute still dims tracks. Ignore known `tsc` processor/worker noise.
 
 Files: `lib/audio-peaks.ts`, `components/waveform-track.tsx`, `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
+
+## Create karaoke audio download (22 Sep 2026)
+
+Bypasses the GPU processor for basic playback:
+
+1. **Permission checkbox removed** — Create karaoke enables when a valid YouTube / YouTube Music link is present (Free weekly limit unchanged).
+2. **`POST /api/audio`** — If GPU secrets are set → existing stem path. Otherwise **full-mix download** via YouTube VISIONOS Innertube (+ optional `COBALT_API_URL` fallback), streamed as **NDJSON** progress events, stored once in R2 (`audio/{id}-original.{ext}`, `mode=full`).
+3. **`GET /api/audio/[id]`** — Multi-format (`m4a`/`mp4`/`webm`/`mp3`/`ogg`/`flac`); `stem=backing|lead` falls back to original when `mode=full`.
+4. **Client** — After lyrics, shows English **"Downloading song"** with **0–100%** bar (progress from download bytes / Content-Length, mapped through store). Sets `backingSrc` from `/api/audio/{id}?stem=backing` (cached blob URL); Play enabled when ready. Vocal track left empty in full-mix mode.
+
+**Progress %:** handshake ~0–8, body bytes → 8–100 (`received/contentLength`), then brief store finish at 100 in the NDJSON `ready` event.
+
+**Blockers / risks:** YouTube may bot-block some Cloudflare egress IPs (error surfaces in UI). Optional `COBALT_API_URL` / `COBALT_API_KEY` or GPU processor remain fallthrough. Stem separation still not live without GPU.
+
+Files: `lib/youtube-download.ts`, `app/api/audio/route.ts`, `app/api/audio/[id]/route.ts`, `app/studio.tsx`, `app/globals.css`, `lib/audio-cache.ts`, `app/api/analyze/route.ts`, `cloudflare-env.d.ts`, `.dev.vars.example`, `PROJECT_STATUS.md`.

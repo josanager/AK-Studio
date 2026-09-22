@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     return Response.json({ title: record?.trackName || parsed.title, artist: record?.artistName || parsed.artist,
       album: record?.albumName, duration, lyrics, lyricsSource: record ? "LRCLIB" : null,
       thumbnail: metadata.thumbnail_url, sourceUrl: source.toString(),
-      processing: { audio: "processor_required", tempo: "pending", stems: "not_requested" } });
+      processing: { audio: "download_on_create", tempo: "pending", stems: "optional_gpu" } });
   } catch {
     return Response.json({ error: "The analysis service is temporarily unavailable. Try again." }, { status: 503 });
   }
