@@ -249,3 +249,43 @@ Bypasses the GPU processor for basic playback:
 **Blockers / risks:** YouTube may bot-block some Cloudflare egress IPs (error surfaces in UI). Optional `COBALT_API_URL` / `COBALT_API_KEY` or GPU processor remain fallthrough. Stem separation still not live without GPU.
 
 Files: `lib/youtube-download.ts`, `app/api/audio/route.ts`, `app/api/audio/[id]/route.ts`, `app/studio.tsx`, `app/globals.css`, `lib/audio-cache.ts`, `app/api/analyze/route.ts`, `cloudflare-env.d.ts`, `.dev.vars.example`, `PROJECT_STATUS.md`.
+
+
+## Create karaoke audio download reliability (22 Sep 2026)
+
+### Progress UI
+- Removed the fleeting full-screen processing modal.
+- **Create karaoke** progress is an **inline fill** on the source bar (background grows 0→100% under the link + button).
+- Status text: “Downloading song” + optional %.
+- Fill stays until success (brief complete) or a clear error.
+
+### Download strategy (Worker → R2 full mix)
+Order for full-mix playback (no stem separation required):
+1. **Cobalt** — if `COBALT_API_URL` (optional `COBALT_API_KEY`) is set
+2. **Processor yt-dlp** — `POST {GPU_PROCESSOR_URL}/download` (yt-dlp only, no GPU separation)
+3. **YouTube Innertube** — last resort from the Worker (often bot-blocked on Cloudflare egress)
+
+If `GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET` are set, Create karaoke still *tries* full stem separation first; on failure it **falls back** to the full-mix chain above so Play is not blocked.
+
+User-facing errors never say “Sign in to confirm you’re not a robot” (that is YouTube bot-check copy, not AK Studio auth).
+
+### Secrets Josan must set (Wrangler / Cloudflare dashboard)
+
+```bash
+# Recommended for production audio download (self-hosted Cobalt):
+npx wrangler secret put COBALT_API_URL
+npx wrangler secret put COBALT_API_KEY   # if your Cobalt instance requires it
+
+# Recommended: processor with yt-dlp (full mix without stem GPU):
+npx wrangler secret put GPU_PROCESSOR_URL      # e.g. https://ak-studio-audio-processor.<account>.workers.dev
+npx wrangler secret put PROCESSOR_WEBHOOK_SECRET
+```
+
+Self-hosted Cobalt is preferred over random public instances (ToS / reliability). Public Cobalt hosts often require JWT and are not hardcoded.
+
+### Play button
+- Enabled only when `backingSrc` is set (blob URL from `/api/audio/{id}?stem=backing` after R2 store).
+- Full-mix mode stores `original` once; GET serves it for `stem=backing`.
+
+### Files
+`lib/youtube-download.ts`, `app/api/audio/route.ts`, `app/api/audio/[id]/route.ts`, `app/studio.tsx`, `app/globals.css`, `processor/server.py`, `processor/worker.ts`, `.dev.vars.example`, `PROJECT_STATUS.md`

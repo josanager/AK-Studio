@@ -10,10 +10,41 @@ export type AudioDownloadResult = {
   title?: string;
   artist?: string;
   duration?: number;
-  source: "youtube" | "cobalt";
+  source: "youtube" | "cobalt" | "processor";
 };
 
 export type ProgressFn = (progress: number) => void | Promise<void>;
+
+/** Map YouTube bot-check copy to AK Studio–safe English (never mention robots / sign-in). */
+export function friendlyYouTubeError(reason?: string): string {
+  const text = (reason || "").toLowerCase();
+  if (
+    text.includes("sign in") ||
+    text.includes("not a robot") ||
+    text.includes("confirm you") ||
+    text.includes("bot") ||
+    text.includes("login") ||
+    text.includes("captcha")
+  ) {
+    return "Could not download audio from YouTube from this server. Retrying with another method…";
+  }
+  if (reason && reason.trim()) {
+    return `Could not download audio from YouTube (${reason.trim()}).`;
+  }
+  return "Could not download audio from YouTube. Please try again.";
+}
+
+export function sanitizeDownloadError(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("not a robot") ||
+    lower.includes("sign in to confirm") ||
+    lower.includes("sign in") && lower.includes("robot")
+  ) {
+    return "Could not download audio from YouTube. Please try again in a moment.";
+  }
+  return message;
+}
 
 type PlayerFormat = {
   itag?: number;
@@ -115,7 +146,7 @@ function pickAudioFormat(player: Record<string, unknown>): PlayerFormat {
   if (!formats.length) {
     const status = asRecord(player.playabilityStatus);
     const reason = typeof status?.reason === "string" ? status.reason : "no audio formats";
-    throw new Error(`YouTube blocked the audio download (${reason}).`);
+    throw new Error(friendlyYouTubeError(reason));
   }
 
   // Prefer AAC/MP4 for browser playback, then highest bitrate.
@@ -186,8 +217,8 @@ export async function downloadYouTubeAudio(
     const reason = asRecord(player?.playabilityStatus)?.reason;
     throw new Error(
       typeof reason === "string" && reason
-        ? `YouTube blocked the audio download (${reason}).`
-        : "YouTube blocked the audio download from this network.",
+        ? friendlyYouTubeError(reason)
+        : "Could not download audio from YouTube. Retrying…",
     );
   }
   if (!player) throw new Error("YouTube did not return playable audio for that link.");
@@ -227,6 +258,7 @@ export async function downloadYouTubeAudio(
   };
 }
 
+
 export async function downloadViaCobalt(
   source: URL,
   cobaltBase: string,
@@ -239,7 +271,9 @@ export async function downloadViaCobalt(
     accept: "application/json",
     "content-type": "application/json",
   };
-  if (apiKey) headers.authorization = `Api-Key ${apiKey}`;
+  if (apiKey) {
+    headers.authorization = apiKey.startsWith("Bearer ") ? apiKey : `Api-Key ${apiKey}`;
+  }
 
   const resolve = await fetch(`${base}/`, {
     method: "POST",
@@ -255,13 +289,26 @@ export async function downloadViaCobalt(
   if (!resolve.ok || !payload) throw new Error("The Cobalt download service rejected the request.");
   if (payload.status === "error") {
     const code = asRecord(payload.error)?.code;
-    throw new Error(typeof code === "string" ? `Cobalt error: ${code}` : "Cobalt could not download that song.");
+    throw new Error(
+      typeof code === "string"
+        ? `Cobalt could not download that song (${code}).`
+        : "Cobalt could not download that song.",
+    );
   }
-  const fileUrl = typeof payload.url === "string" ? payload.url : null;
+
+  let fileUrl = typeof payload.url === "string" ? payload.url : null;
+  if (!fileUrl && Array.isArray(payload.picker) && payload.picker.length) {
+    const first = asRecord(payload.picker[0]);
+    if (typeof first?.url === "string") fileUrl = first.url;
+  }
   if (!fileUrl) throw new Error("Cobalt did not return an audio file URL.");
 
   if (onProgress) await onProgress(10);
-  const audioResponse = await fetch(fileUrl, { headers: apiKey ? { authorization: `Api-Key ${apiKey}` } : undefined });
+  const audioResponse = await fetch(fileUrl, {
+    headers: apiKey
+      ? { authorization: apiKey.startsWith("Bearer ") ? apiKey : `Api-Key ${apiKey}` }
+      : undefined,
+  });
   if (!audioResponse.ok) throw new Error("Cobalt audio download failed.");
   const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
   const bytes = await readBodyWithProgress(audioResponse, onProgress, { from: 10, to: 100 });
@@ -270,5 +317,59 @@ export async function downloadViaCobalt(
     contentType,
     extension: extensionFor(contentType),
     source: "cobalt",
+  };
+}
+
+/** Full-mix download via AK Studio processor (yt-dlp only — no stem separation). */
+export async function downloadViaProcessor(
+  source: URL,
+  processorBase: string,
+  webhookSecret: string,
+  jobId: string,
+  onProgress?: ProgressFn,
+): Promise<AudioDownloadResult> {
+  if (onProgress) await onProgress(4);
+  const base = processorBase.replace(/\/$/, "");
+  const response = await fetch(`${base}/download`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${webhookSecret}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ url: source.toString(), jobId }),
+  });
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(
+      sanitizeDownloadError(message.slice(0, 280) || "The audio processor could not download that song."),
+    );
+  }
+  if (onProgress) await onProgress(12);
+  const manifest = await response.json() as {
+    files?: { original?: string };
+    title?: string;
+    artist?: string;
+    duration?: number;
+  };
+  const path = manifest.files?.original;
+  if (!path) throw new Error("The audio processor did not return a downloadable file.");
+
+  const fileResponse = await fetch(`${base}${path}`, {
+    headers: { authorization: `Bearer ${webhookSecret}` },
+  });
+  if (!fileResponse.ok || !fileResponse.body) {
+    throw new Error("The processor audio file could not be fetched.");
+  }
+  const contentType = fileResponse.headers.get("content-type") || "audio/flac";
+  const bytes = await readBodyWithProgress(fileResponse, onProgress, { from: 12, to: 100 });
+  if (!bytes.byteLength) throw new Error("The processor audio download was empty.");
+  return {
+    bytes,
+    contentType,
+    extension: extensionFor(contentType, "audio/flac"),
+    title: manifest.title,
+    artist: manifest.artist,
+    duration: typeof manifest.duration === "number" ? manifest.duration : undefined,
+    source: "processor",
   };
 }

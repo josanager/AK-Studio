@@ -74,8 +74,9 @@ class Handler(BaseHTTPRequestHandler):
             shutil.copyfileobj(audio, self.wfile, length=1024 * 1024)
 
     def do_POST(self):
-        if self.path != "/process":
+        if self.path not in ("/process", "/download"):
             return self.send_error(404)
+        download_only = self.path == "/download"
         try:
             cleanup_jobs()
             length = min(int(self.headers.get("content-length", "0")), 8192)
@@ -92,6 +93,19 @@ class Handler(BaseHTTPRequestHandler):
             source = job_dir / "source.flac"
             if not source.is_file():
                 raise RuntimeError("The downloader did not produce an audio file.")
+            if download_only:
+                shutil.move(source, job_dir / "original.flac")
+                info = {}
+                info_path = job_dir / "source.info.json"
+                if info_path.is_file():
+                    raw = json.loads(info_path.read_text(encoding="utf-8"))
+                    info = {
+                        "title": raw.get("track") or raw.get("title"),
+                        "artist": raw.get("artist") or raw.get("uploader"),
+                        "duration": raw.get("duration"),
+                    }
+                files = {"original": f"/file/{job_id}/original"}
+                return self.respond_json(200, {**info, "bpm": None, "model": "full-mix", "files": files})
             separated = job_dir / "separated"
             separated.mkdir()
             run(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models"], 3600)

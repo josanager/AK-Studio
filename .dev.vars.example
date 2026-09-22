@@ -14,3 +14,12 @@ GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
 # Optional: self-hosted Cobalt for audio download fallback
 # COBALT_API_URL=https://cobalt.example.com
 # COBALT_API_KEY=
+
+# Optional GPU stem separator — ALSO enables yt-dlp full-mix via POST /download
+# (full mix works without running stem separation)
+# GPU_PROCESSOR_URL=https://ak-studio-audio-processor.example.workers.dev
+# PROCESSOR_WEBHOOK_SECRET=replace-with-a-long-random-secret
+
+# Optional: self-hosted Cobalt (preferred audio download from Workers)
+# COBALT_API_URL=https://cobalt.example.com
+# COBALT_API_KEY=
