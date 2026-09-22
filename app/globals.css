@@ -884,3 +884,37 @@ html:has(.ak-shell) body{
 .wave-track > i{position:relative;z-index:1}
 .track-heads.no-vocal ~ .track-canvas .wave-track.backing{/* same position */}
 .timeline-body:has(.track-heads.no-vocal){/* keep height stable */}
+
+/* Export video primary invite + quality/FPS canvas chip */
+.export-menu-panel button.export-primary{
+  background:#111;color:#fff;font-weight:650;
+}
+.export-menu-panel button.export-primary:hover:not(:disabled){background:#222}
+.export-menu-panel button.export-primary i{color:#bbb}
+.export-menu-panel button.export-primary svg{color:#fff}
+.preview-tools-right{
+  display:flex;align-items:center;gap:4px;margin-left:auto;
+}
+.quality-fps{position:relative}
+.quality-fps-chip{
+  height:28px;padding:0 8px;border:1px solid #b9b9b2;background:#fff;
+  border-radius:4px;display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+.quality-fps-chip:hover{background:#ecece8}
+.quality-fps-chip b{font-weight:750;font-size:11px}
+.quality-fps-chip span{color:#666}
+.quality-fps-chip span:after{content:" fps"}
+.quality-fps-panel{
+  position:absolute;right:0;top:calc(100% + 6px);min-width:168px;z-index:35;
+  background:#fff;border:1px solid #111;box-shadow:4px 4px 0 #111;padding:8px;display:grid;gap:10px;
+}
+.quality-fps-group{display:grid;gap:5px}
+.quality-fps-group>span{font-size:10px;color:#777;letter-spacing:.04em;text-transform:uppercase}
+.quality-fps-group>div{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.quality-fps-group:last-child>div{grid-template-columns:repeat(2,1fr)}
+.quality-fps-group button{
+  height:28px;border:1px solid #cfcfc9;background:#fff;border-radius:4px;font-size:11px;padding:0;
+}
+.quality-fps-group button:hover{background:#f0f0ec}
+.quality-fps-group button.active{background:#111;color:#fff;border-color:#111}

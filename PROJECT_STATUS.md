@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (stem menu hit-target + waveform separate progress)
+Actualizado: 22 de septiembre de 2026 (karaoke video export + quality/FPS canvas chip)
 
 ## Ubicaciones
 
@@ -48,10 +48,12 @@ Actualizado: 22 de septiembre de 2026 (stem menu hit-target + waveform separate 
 - **Separate progress:** NDJSON % also drives a left→right `.wave-fill` overlay on the backing `WaveformTrack` (same style as the source-bar fill), until stems finish or error.
 
 ### B) Export (not a paywall)
-- Export menu: **Download audio** (current full-mix/backing file, sensible filename) works for Free/Pro.
-- **Export video** disabled with “Coming soon” — no fake hard error, unrelated to weekly karaoke limit.
+- Export menu: **Export video** is the primary invite (Free/Pro); **Download audio** still works.
+- Video pipeline (`lib/export-video.ts`): **WebCodecs** via `mediabunny` (`CanvasSource` + `AudioBufferSource` → MP4 AVC/AAC); fallback `canvas.captureStream` + `MediaRecorder` (VP9/WebM or H.264).
+- Canvas tools chip: **4K / 2K / 1080** + **30 / 60** FPS (persisted in project autosave). Resolutions respect aspect (16:9 / 9:16 / 1:1).
+- Progress on the source bar; downloads `Artist - Title.mp4` (or `.webm` on fallback). Timeline duration respected.
 
-Files: `lib/audio-stems.ts`, `app/api/audio/separate/route.ts`, `app/api/audio/route.ts`, `app/api/audio/[id]/route.ts`, `app/studio.tsx`, `components/waveform-track.tsx`, `processor/server.py`, `app/globals.css`.
+Files: `lib/export-video.ts`, `lib/studio-project.ts`, `app/studio.tsx`, `app/globals.css`, `lib/audio-stems.ts`, `app/api/audio/separate/route.ts`, `components/waveform-track.tsx`.
 
 ### Timeline playhead scrub (22 sep 2026)
 
@@ -119,7 +121,7 @@ Files: `lib/audio-stems.ts`, `app/api/audio/separate/route.ts`, `app/api/audio/r
 Estas funciones no deben anunciarse como operativas en producción hasta completar sus dependencias:
 
 1. **Separación de stems (GPU).** UI + `POST /api/audio/separate` listos (right-click en full-mix). Create karaoke sigue descargando full mix sin GPU. La separación real sigue necesitando un procesador con `audio-separator` (`GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET`); un tunnel solo-download responde con error claro en inglés.
-2. **Exportación de vídeo.** **Download audio** ya funciona (sin paywall). Export video MP4/FFmpeg + marca de agua Free siguen pendientes (“Coming soon” en el menú Export).
+2. **Exportación de vídeo.** Client-side WebCodecs/mediabunny + MediaRecorder fallback ya exportan MP4/WebM (sin paywall). Mejoras posibles: captura DOM exacta del stage, watermark Pro/Free, aceleración GPU y límites de tamaño en 4K60.
 3. **Stripe Live.** El flujo completo funciona en modo prueba. Para aceptar dinero real falta verificar la empresa y configurar las credenciales, producto/precio y webhook equivalentes en modo Live.
 4. **Separación premium.** BS-RoFormer está previsto para Free; Moises.ai o Music.ai siguen pendientes de proveedor y clave para Pro.
 5. **Dominio personalizado.** La aplicación continúa usando `workers.dev`.

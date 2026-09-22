@@ -15,6 +15,8 @@ export type StudioProjectState = {
   model: string | null;
   bpm: number | null;
   aspect: "16:9" | "9:16" | "1:1";
+  exportQuality: "4K" | "2K" | "1080";
+  exportFps: 30 | 60;
   font: string;
   fontSize: number;
   lineHeight: number;
@@ -58,6 +60,8 @@ export function emptyStudioProject(): StudioProjectState {
     model: null,
     bpm: null,
     aspect: "16:9",
+    exportQuality: "1080",
+    exportFps: 30,
     font: "Avenir Next",
     fontSize: 72,
     lineHeight: 0.94,
@@ -84,6 +88,8 @@ export function parseStudioProject(raw: string | null | undefined): StudioProjec
       textStyle: { ...base.textStyle, ...(data.textStyle || {}) },
       textPosition: { ...base.textPosition, ...(data.textPosition || {}) },
       stemMuted: { ...base.stemMuted, ...(data.stemMuted || {}) },
+      exportQuality: data.exportQuality === "4K" || data.exportQuality === "2K" || data.exportQuality === "1080" ? data.exportQuality : base.exportQuality,
+      exportFps: data.exportFps === 60 ? 60 : 30,
     };
   } catch {
     return null;
