@@ -20,7 +20,8 @@ export const projects = sqliteTable("projects", {
   timelineJson: text("timeline_json").notNull().default("{}"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-}, table => [uniqueIndex("idx_projects_user_name").on(table.userId, table.name)]);
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+});
 
 export const apiCredentials = sqliteTable("api_credentials", {
   id: text("id").primaryKey(),

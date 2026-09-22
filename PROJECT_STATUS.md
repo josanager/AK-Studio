@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (Create karaoke full-mix download + playback; Stripe Checkout + webhook en prueba)
+Actualizado: 22 de septiembre de 2026 (sticky playhead + D1 project autosave 24h)
 
 ## Ubicaciones
 
@@ -33,6 +33,27 @@ Actualizado: 22 de septiembre de 2026 (Create karaoke full-mix download + playba
 - Timeline track headers are **icons only** (Captions / Music / Mic) with `title` + `aria-label`; left gutter tightened (~52px).
 - Waveform tracks set explicit `width`/`minWidth` to match lyric track zoom span so peaks fill the full clip.
 - Studio shell: `html/body:has(.ak-shell)` + `.ak-shell` use `100dvh` + `overflow:hidden` (no page scrollbars); inner lyrics/inspector/track-canvas scroll without chrome.
+
+
+### Timeline playhead scrub (22 sep 2026)
+
+- **Sticky scrub fixed** in `app/studio.tsx`: playhead/timeline/transport scrub starts only on `pointerdown` (not hover).
+- While dragging: `setPointerCapture` on the scrub surface; move tracked via window `pointermove`.
+- Drag ends immediately on window `pointerup` / `pointercancel` / `mouseup`, element `lostpointercapture`, window `blur`, or unmount — `endScrub()` clears listeners and releases capture (safe if already released).
+- Nested `time-ruler` duplicate handler removed so one drag session cannot leave orphan move listeners.
+- Click-to-seek on the timeline remains one-shot (seek on down, stop on up).
+
+
+
+### Project persistence (22 sep 2026)
+
+- D1 `projects` stores studio drafts in `timeline_json` with `expires_at` (~24h, aligned with R2 temp audio).
+- API: `GET/PUT /api/projects`, `GET/DELETE /api/projects/[id]`.
+- Free plan: **one** autosaved draft — each save overwrites that slot; shown under **Saved** in the studio sidebar.
+- Pro: upsert/create drafts with the same 24h TTL.
+- On `/studio` load, the latest non-expired draft is restored and audio is rehydrated via `/api/audio/{id}` + client cache.
+- Migration: `drizzle/0005_project_expires.sql` (adds `expires_at`, drops unique name index).
+
 
 ### Usuarios y datos
 
