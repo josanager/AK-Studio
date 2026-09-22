@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -53,6 +54,33 @@ def find_stems(directory):
     return vocals, instrumental
 
 
+def download_audio_url(audio_url, dest: Path):
+    parsed = urlparse(audio_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise RuntimeError("Invalid audio URL for stem separation.")
+    req = urllib.request.Request(audio_url, headers={"user-agent": "AKAudioProcessor/2.0"})
+    with urllib.request.urlopen(req, timeout=180) as response:
+        content_type = (response.headers.get("content-type") or "").lower()
+        suffix = ".flac"
+        if "mpeg" in content_type or "mp3" in content_type:
+            suffix = ".mp3"
+        elif "mp4" in content_type or "m4a" in content_type or "aac" in content_type:
+            suffix = ".m4a"
+        elif "webm" in content_type:
+            suffix = ".webm"
+        elif "ogg" in content_type or "opus" in content_type:
+            suffix = ".ogg"
+        raw = dest.with_suffix(suffix)
+        with raw.open("wb") as out:
+            shutil.copyfileobj(response, out, length=1024 * 1024)
+    if raw.suffix.lower() == ".flac":
+        return raw
+    flac = dest.with_suffix(".flac")
+    run(["ffmpeg", "-y", "-i", str(raw), "-vn", "-c:a", "flac", str(flac)], 600)
+    raw.unlink(missing_ok=True)
+    return flac
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "AKAudioProcessor/2.0"
 
@@ -79,23 +107,31 @@ class Handler(BaseHTTPRequestHandler):
         download_only = self.path == "/download"
         try:
             cleanup_jobs()
-            length = min(int(self.headers.get("content-length", "0")), 8192)
+            length = min(int(self.headers.get("content-length", "0")), 16384)
             payload = json.loads(self.rfile.read(length))
-            url = str(payload.get("url", ""))
+            url = str(payload.get("url", "") or "")
+            audio_url = str(payload.get("audioUrl", "") or "")
             job_id = str(payload.get("jobId", ""))
-            if urlparse(url).hostname not in ALLOWED_HOSTS:
-                return self.respond_error(400, "Only public YouTube and YouTube Music links are supported.")
             if not re.fullmatch(r"[0-9a-f-]{36}", job_id):
                 return self.respond_error(400, "Invalid processing job.")
+
+            has_youtube = bool(url) and urlparse(url).hostname in ALLOWED_HOSTS
+            has_audio = bool(audio_url) and urlparse(audio_url).scheme in ("http", "https")
+            if not has_youtube and not has_audio:
+                return self.respond_error(400, "Only public YouTube links or a stored audio URL are supported.")
+            if download_only and not has_youtube:
+                return self.respond_error(400, "Only public YouTube and YouTube Music links are supported.")
+
             job_dir = JOBS_ROOT / job_id
             job_dir.mkdir(parents=True, exist_ok=False)
-            run(["yt-dlp", "--no-playlist", "--retries", "5", "--fragment-retries", "5", "--extractor-retries", "3", "--socket-timeout", "25", "--retry-sleep", "http:linear=1:3", "--retry-sleep", "fragment:exp=1:8", "--js-runtimes", "deno", "-f", "bestaudio/best", "-x", "--audio-format", "flac", "--audio-quality", "0", "--embed-metadata", "--write-info-json", "-o", str(job_dir / "source.%(ext)s"), url], 900)
             source = job_dir / "source.flac"
-            if not source.is_file():
-                raise RuntimeError("The downloader did not produce an audio file.")
-            if download_only:
-                shutil.move(source, job_dir / "original.flac")
-                info = {}
+            info = {}
+
+            if has_audio and not download_only:
+                source = download_audio_url(audio_url, job_dir / "source")
+            else:
+                run(["yt-dlp", "--no-playlist", "--retries", "5", "--fragment-retries", "5", "--extractor-retries", "3", "--socket-timeout", "25", "--retry-sleep", "http:linear=1:3", "--retry-sleep", "fragment:exp=1:8", "--js-runtimes", "deno", "-f", "bestaudio/best", "-x", "--audio-format", "flac", "--audio-quality", "0", "--embed-metadata", "--write-info-json", "-o", str(job_dir / "source.%(ext)s"), url], 900)
+                source = job_dir / "source.flac"
                 info_path = job_dir / "source.info.json"
                 if info_path.is_file():
                     raw = json.loads(info_path.read_text(encoding="utf-8"))
@@ -104,8 +140,18 @@ class Handler(BaseHTTPRequestHandler):
                         "artist": raw.get("artist") or raw.get("uploader"),
                         "duration": raw.get("duration"),
                     }
+
+            if not source.is_file():
+                raise RuntimeError("The downloader did not produce an audio file.")
+            if download_only:
+                shutil.move(source, job_dir / "original.flac")
                 files = {"original": f"/file/{job_id}/original"}
                 return self.respond_json(200, {**info, "bpm": None, "model": "full-mix", "files": files})
+
+            # Check separator binary exists — download-only images fail clearly here.
+            if not shutil.which("audio-separator"):
+                raise RuntimeError("Stem separation needs the GPU processor. Full mix still plays.")
+
             separated = job_dir / "separated"
             separated.mkdir()
             run(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models"], 3600)
@@ -113,11 +159,6 @@ class Handler(BaseHTTPRequestHandler):
             shutil.move(source, job_dir / "original.flac")
             shutil.move(lead, job_dir / "lead.flac")
             shutil.move(backing, job_dir / "backing.flac")
-            info = {}
-            info_path = job_dir / "source.info.json"
-            if info_path.is_file():
-                raw = json.loads(info_path.read_text(encoding="utf-8"))
-                info = {"title": raw.get("track") or raw.get("title"), "artist": raw.get("artist") or raw.get("uploader"), "duration": raw.get("duration")}
             files = {stem: f"/file/{job_id}/{stem}" for stem in ("original", "backing", "lead")}
             self.respond_json(200, {**info, "bpm": detect_bpm(job_dir / "original.flac"), "model": "BS-RoFormer", "files": files})
         except subprocess.TimeoutExpired:

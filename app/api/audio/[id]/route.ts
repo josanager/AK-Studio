@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getCurrentUser } from "../../../auth";
+import { verifyStemAccessToken } from "../../../../lib/audio-stems";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STEM_EXTS = ["m4a", "mp4", "webm", "mp3", "ogg", "flac"] as const;
@@ -16,12 +17,19 @@ async function getStemObject(id: string, stem: string, range?: { offset: number;
 }
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  const user = await getCurrentUser();
-  if (!user) return new Response("Unauthorized", { status: 401 });
   const { id } = await context.params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response("Not found", { status: 404 });
-  const stem = new URL(request.url).searchParams.get("stem") || "original";
+  const url = new URL(request.url);
+  const stem = url.searchParams.get("stem") || "original";
   if (!new Set(["original", "backing", "lead"]).has(stem)) return new Response("Not found", { status: 404 });
+
+  const token = url.searchParams.get("token");
+  const tokenOk = await verifyStemAccessToken(id, stem, token, env.PROCESSOR_WEBHOOK_SECRET);
+  if (!tokenOk) {
+    const user = await getCurrentUser();
+    if (!user) return new Response("Unauthorized", { status: 401 });
+  }
+
   const rangeHeader = request.headers.get("range");
   const rangeMatch = rangeHeader?.match(/^bytes=(\d+)-(\d*)$/);
   const range = rangeMatch
@@ -36,7 +44,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   }
   if (!found) return new Response("This temporary audio has expired.", { status: 404 });
   const { object, ext } = found;
-  if (object.customMetadata?.userId !== user.userId) return new Response("Forbidden", { status: 403 });
+
+  if (!tokenOk) {
+    const user = await getCurrentUser();
+    if (!user || object.customMetadata?.userId !== user.userId) return new Response("Forbidden", { status: 403 });
+  }
 
   const createdAt = Date.parse(object.customMetadata?.createdAt || "");
   if (Number.isFinite(createdAt) && Date.now() - createdAt > DAY_MS) {

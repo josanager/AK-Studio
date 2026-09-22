@@ -1,6 +1,6 @@
 # AK Studio — estado y guía de continuidad
 
-Actualizado: 22 de septiembre de 2026 (lyric clip timeline sync + prior studio bugfixes)
+Actualizado: 22 de septiembre de 2026 (lead vocal separate + export audio)
 
 ## Ubicaciones
 
@@ -34,6 +34,22 @@ Actualizado: 22 de septiembre de 2026 (lyric clip timeline sync + prior studio b
 - Waveform tracks set explicit `width`/`minWidth` to match lyric track zoom span so peaks fill the full clip.
 - Studio shell: `html/body:has(.ak-shell)` + `.ak-shell` use `100dvh` + `overflow:hidden` (no page scrollbars); inner lyrics/inspector/track-canvas scroll without chrome.
 
+
+
+
+## Lead vocal separate + Export audio (22 Sep 2026)
+
+### A) Separate lead vocal
+- Full-mix / backing waveform: hover hint + **right-click → “Separate lead vocal”**.
+- API: `POST /api/audio/separate` body `{ audioId, url? }` → NDJSON progress (same shape as create karaoke). Prefer signed R2 `audioUrl` to the GPU `/process` (no YouTube re-download when the processor can fetch it); falls back to YouTube `url`.
+- Lead vocal track (head + waveform) stays **hidden** until `vocalSrc` exists; full mix plays on backing before separation.
+- Friendly 503 copy when GPU/separator missing: “Stem separation needs the GPU processor. Full mix still plays.”
+
+### B) Export (not a paywall)
+- Export menu: **Download audio** (current full-mix/backing file, sensible filename) works for Free/Pro.
+- **Export video** disabled with “Coming soon” — no fake hard error, unrelated to weekly karaoke limit.
+
+Files: `lib/audio-stems.ts`, `app/api/audio/separate/route.ts`, `app/api/audio/route.ts`, `app/api/audio/[id]/route.ts`, `app/studio.tsx`, `components/waveform-track.tsx`, `processor/server.py`, `app/globals.css`.
 
 ### Timeline playhead scrub (22 sep 2026)
 
@@ -100,8 +116,8 @@ Actualizado: 22 de septiembre de 2026 (lyric clip timeline sync + prior studio b
 
 Estas funciones no deben anunciarse como operativas en producción hasta completar sus dependencias:
 
-1. **Separación de stems (GPU).** Create karaoke ya descarga el **full mix** a R2 y lo pone en la timeline para Play sin GPU. La separación lead/backing con BS-RoFormer sigue pendiente de `GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET`.
-2. **Exportación de vídeo.** El botón y la interfaz existen, pero falta el render final con FFmpeg, la marca de agua del plan Free y la descarga del archivo terminado.
+1. **Separación de stems (GPU).** UI + `POST /api/audio/separate` listos (right-click en full-mix). Create karaoke sigue descargando full mix sin GPU. La separación real sigue necesitando un procesador con `audio-separator` (`GPU_PROCESSOR_URL` + `PROCESSOR_WEBHOOK_SECRET`); un tunnel solo-download responde con error claro en inglés.
+2. **Exportación de vídeo.** **Download audio** ya funciona (sin paywall). Export video MP4/FFmpeg + marca de agua Free siguen pendientes (“Coming soon” en el menú Export).
 3. **Stripe Live.** El flujo completo funciona en modo prueba. Para aceptar dinero real falta verificar la empresa y configurar las credenciales, producto/precio y webhook equivalentes en modo Live.
 4. **Separación premium.** BS-RoFormer está previsto para Free; Moises.ai o Music.ai siguen pendientes de proveedor y clave para Pro.
 5. **Dominio personalizado.** La aplicación continúa usando `workers.dev`.

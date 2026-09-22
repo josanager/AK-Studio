@@ -8,6 +8,13 @@ import {
   sanitizeDownloadError,
   type AudioDownloadResult,
 } from "../../../lib/youtube-download";
+import {
+  canRunGpuSeparator,
+  ndjsonResponse,
+  processWithGpu,
+  storeStem,
+  type NdjsonEvent,
+} from "../../../lib/audio-stems";
 
 const allowedHosts = new Set(["youtube.com", "www.youtube.com", "music.youtube.com", "youtu.be", "m.youtube.com"]);
 
@@ -20,125 +27,6 @@ function sourceURL(value: string) {
   } catch {
     return null;
   }
-}
-
-type NdjsonEvent = Record<string, unknown>;
-
-function ndjsonResponse(run: (send: (event: NdjsonEvent) => Promise<void>) => Promise<void>) {
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const send = async (event: NdjsonEvent) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-      };
-      try {
-        await run(send);
-      } catch (error) {
-        const raw = error instanceof Error ? error.message : "The song could not be processed.";
-        await send({
-          status: "error",
-          progress: 0,
-          error: sanitizeDownloadError(raw),
-        });
-      } finally {
-        controller.close();
-      }
-    },
-  });
-  return new Response(stream, {
-    headers: {
-      "content-type": "application/x-ndjson; charset=utf-8",
-      "cache-control": "no-store",
-    },
-  });
-}
-
-async function storeStem(
-  usageId: string,
-  stem: string,
-  body: ArrayBuffer | Uint8Array | ReadableStream,
-  contentType: string,
-  extension: string,
-  userId: string,
-  extra: Record<string, string> = {},
-) {
-  await env.TEMP_BUCKET.put(`audio/${usageId}-${stem}.${extension}`, body, {
-    httpMetadata: { contentType, cacheControl: "private, max-age=86400" },
-    customMetadata: {
-      createdAt: new Date().toISOString(),
-      source: "youtube",
-      stem,
-      userId,
-      extension,
-      ...extra,
-    },
-  });
-  return `/api/audio/${usageId}?stem=${stem}`;
-}
-
-async function processWithGpu(source: URL, usageId: string, userId: string, send: (event: NdjsonEvent) => Promise<void>) {
-  const processorBase = env.GPU_PROCESSOR_URL!.replace(/\/$/, "");
-  await send({ status: "downloading", progress: 5, phase: "processor", message: "Separating stems…" });
-  const response = await fetch(`${processorBase}/process`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ url: source.toString(), jobId: usageId }),
-  });
-  if (!response.ok) {
-    const message = await response.text().catch(() => "");
-    throw new Error(sanitizeDownloadError(message.slice(0, 300) || "The song could not be processed."));
-  }
-  await send({ status: "downloading", progress: 55, phase: "storing", message: "Saving stems…" });
-  const manifest = await response.json() as {
-    files?: Record<string, string>;
-    title?: string;
-    artist?: string;
-    duration?: number;
-    bpm?: number;
-    model?: string;
-  };
-  if (!manifest.files?.original || !manifest.files?.backing || !manifest.files?.lead) {
-    throw new Error("The separator returned an incomplete result.");
-  }
-  const stored: Record<string, string> = {};
-  const stems = Object.entries(manifest.files);
-  let done = 0;
-  await Promise.all(stems.map(async ([stem, path]) => {
-    const fileResponse = await fetch(`${processorBase}${path}`, {
-      headers: { authorization: `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}` },
-    });
-    if (!fileResponse.ok || !fileResponse.body) throw new Error(`The ${stem} stem could not be stored.`);
-    stored[stem] = await storeStem(
-      usageId,
-      stem,
-      fileResponse.body,
-      "audio/flac",
-      "flac",
-      userId,
-      { mode: "stems", model: manifest.model || "BS-RoFormer" },
-    );
-    done += 1;
-    await send({ status: "downloading", progress: 55 + Math.round((done / stems.length) * 40), phase: "storing" });
-  }));
-  await send({
-    status: "ready",
-    progress: 100,
-    id: usageId,
-    mode: "stems",
-    audioUrl: stored.original,
-    backingUrl: stored.backing,
-    vocalUrl: stored.lead,
-    format: "flac",
-    expiresIn: 86400,
-    bpm: manifest.bpm,
-    model: manifest.model || "BS-RoFormer",
-    title: manifest.title,
-    artist: manifest.artist,
-    duration: manifest.duration,
-  });
 }
 
 async function downloadFullMix(
@@ -254,7 +142,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const canSeparate = Boolean(env.GPU_PROCESSOR_URL && env.PROCESSOR_WEBHOOK_SECRET);
+  const canSeparate = canRunGpuSeparator();
 
   return ndjsonResponse(async (send) => {
     try {
@@ -267,7 +155,12 @@ export async function POST(request: Request) {
       });
       if (canSeparate) {
         try {
-          await processWithGpu(source, usageId, user.userId, send);
+          await processWithGpu({
+            youtubeUrl: source.toString(),
+            usageId,
+            userId: user.userId,
+            send,
+          });
         } catch {
           await send({
             status: "downloading",

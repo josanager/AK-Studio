@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { resamplePeaks } from "../lib/audio-peaks";
 
 type WaveformTrackProps = {
@@ -17,6 +17,12 @@ type WaveformTrackProps = {
    */
   widthPercent?: number;
   maxBarHeight?: number;
+  /** Enable pointer events (hover / context menu) on this clip. */
+  interactive?: boolean;
+  title?: string;
+  "aria-label"?: string;
+  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  children?: ReactNode;
 };
 
 /**
@@ -33,6 +39,11 @@ export function WaveformTrack({
   minWidth,
   widthPercent = 100,
   maxBarHeight = 40,
+  interactive = false,
+  title,
+  "aria-label": ariaLabel,
+  onContextMenu,
+  children,
 }: WaveformTrackProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [barCount, setBarCount] = useState(320);
@@ -80,13 +91,18 @@ export function WaveformTrack({
   return (
     <div
       ref={ref}
-      className={`wave-track ${className}${bars ? "" : " wave-empty"}`.trim()}
+      className={`wave-track ${className}${bars ? "" : " wave-empty"}${interactive ? " interactive" : ""}`.trim()}
       style={spanStyle}
-      aria-hidden="true"
+      aria-hidden={interactive ? undefined : "true"}
+      role={interactive ? "group" : undefined}
+      title={title}
+      aria-label={ariaLabel}
+      onContextMenu={onContextMenu}
     >
       {bars?.map((p, i) => (
         <i key={i} style={{ height: Math.max(3, Math.round(p * maxBarHeight)) }} />
       ))}
+      {children}
     </div>
   );
 }

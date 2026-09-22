@@ -831,3 +831,41 @@ html:has(.ak-shell) body{
 .source-bar.is-progress .source-status:not(:empty){display:flex}
 /* Hide legacy modal progress overlay if any leftover markup appears */
 .processing-layer{display:none!important}
+
+/* Export menu + stem separation context menu */
+.export-menu{position:relative;margin-left:7px}
+.export-menu .render-button{margin-left:0}
+.export-menu .render-button svg:last-child{width:14px;height:14px;opacity:.75}
+.export-menu-panel{
+  position:absolute;right:0;top:calc(100% + 6px);min-width:210px;
+  background:#fff;border:1px solid #111;box-shadow:4px 4px 0 #111;
+  display:grid;padding:6px;gap:2px;z-index:40;
+}
+.export-menu-panel button{
+  display:flex;align-items:center;gap:8px;min-height:36px;padding:0 10px;
+  border:0;background:transparent;border-radius:4px;font-size:12px;text-align:left;width:100%;
+}
+.export-menu-panel button:hover:not(:disabled){background:#f0f0ec}
+.export-menu-panel button:disabled{opacity:.55;cursor:not-allowed}
+.export-menu-panel button svg{width:15px;height:15px}
+.export-menu-panel i{margin-left:auto;font-style:normal;font-size:10px;color:#888}
+.stem-context-menu{
+  position:fixed;z-index:50;min-width:180px;background:#fff;border:1px solid #111;
+  box-shadow:4px 4px 0 #111;padding:4px;display:grid;
+}
+.stem-context-menu button{
+  border:0;background:transparent;min-height:34px;padding:0 10px;text-align:left;
+  font-size:12px;border-radius:3px;width:100%;
+}
+.stem-context-menu button:hover:not(:disabled){background:#f0f0ec}
+.stem-context-menu button:disabled{opacity:.45;cursor:not-allowed}
+.wave-track.interactive{pointer-events:auto;cursor:context-menu;z-index:3}
+.wave-track.interactive:hover{box-shadow:inset 0 0 0 1px #b9b9b2}
+.wave-track.interactive:hover:after{
+  content:"Right-click · Separate lead vocal";
+  position:absolute;left:8px;top:4px;z-index:2;
+  font-size:9px;letter-spacing:.02em;color:#555;background:#ffffffd9;
+  padding:2px 6px;border-radius:3px;pointer-events:none;white-space:nowrap;
+}
+.track-heads.no-vocal ~ .track-canvas .wave-track.backing{/* same position */}
+.timeline-body:has(.track-heads.no-vocal){/* keep height stable */}
