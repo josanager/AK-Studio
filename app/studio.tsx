@@ -303,7 +303,7 @@ async function deleteSavedProject(id:string,title:string){const prev=savedProjec
   <div className="source-bar-fill" style={{width: processing || separating || exporting || downloadProgress!==null ? `${Math.max(2, Math.min(100, downloadProgress ?? 2))}%` : "0%"}} aria-hidden="true"/>
   <div className="source-bar-content">
     <Link2/>
-    <input aria-label="YouTube Music link" value={url} onChange={e=>setUrl(e.target.value)} placeholder="Paste a YouTube Music link" disabled={!plan.canCreate || processing || separating || exporting}/>
+    <input aria-label="YouTube Music link" value={url} onChange={e=>setUrl(e.target.value)} onPaste={e=>{const pasted=e.clipboardData.getData("text").trim();if(!pasted)return;e.preventDefault();setUrl(pasted)}} placeholder="Paste a YouTube Music link" disabled={processing || separating || exporting}/>
     <span className={`source-status ${notice ? notice.kind : processing || separating || exporting ? "progress" : ""}`}>
       {processing || separating || exporting || downloadProgress!==null
         ? <><LoaderCircle className="spin"/>{

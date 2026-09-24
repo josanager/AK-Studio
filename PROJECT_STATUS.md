@@ -445,3 +445,11 @@ Files: `app/studio.tsx`, `components/waveform-track.tsx`, `lib/audio-peaks.ts`, 
 
 Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
+
+## Editor spacing and link paste (24 Sep 2026)
+
+- Link input remains editable after the free weekly creation limit is reached; only the Create action remains gated. Explicit plain-text paste handling trims clipboard whitespace and accepts YouTube / YouTube Music URLs.
+- Consolidated the editor's final spacing layer around a 4/8/12/16px rhythm: source bar, panel headers, tabs, action groups, inspector fields, transport, and timeline toolbar now have distinct, consistent separation.
+- Narrow layouts use a single-column editor (lyrics above preview) instead of squeezing the lyrics panel beside canvas controls. At ≤640px, the upgrade action receives its own row and touch controls retain 40–44px targets.
+
+Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
