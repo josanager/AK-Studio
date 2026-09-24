@@ -1,4 +1,6 @@
 import {redirect} from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import {ArrowRight, Check, Gauge, Link2, Mic2, Type, WandSparkles} from "lucide-react";
 import {LandingReveal} from "../components/landing-reveal";
 import {TypeCycle} from "../components/type-cycle";
@@ -35,10 +37,10 @@ export default async function Home() {
       />
 
       <nav className="landing-nav" aria-label="Main navigation">
-        <a className="landing-wordmark" href="/" aria-label="AK Studio home">
-          <span>AK</span>
+        <Link className="landing-wordmark" href="/" aria-label="AK Studio home">
+          <span><Image src="/logoak.svg" alt="" width={1080} height={1080} /></span>
           <b>Studio</b>
-        </a>
+        </Link>
         <div className="landing-nav-links">
           <a href="#product">Product</a>
           <a href="#type">Type</a>
@@ -404,10 +406,10 @@ export default async function Home() {
       </LandingReveal>
 
       <footer className="landing-footer">
-        <a className="landing-wordmark" href="/">
-          <span>AK</span>
+        <Link className="landing-wordmark" href="/" aria-label="AK Studio home">
+          <span><Image src="/logoak.svg" alt="" width={1080} height={1080} /></span>
           <b>Studio</b>
-        </a>
+        </Link>
         <p>Music in. Karaoke out.</p>
         <span>© 2026 AK Studio</span>
       </footer>

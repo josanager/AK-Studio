@@ -1125,3 +1125,15 @@ html:has(.ak-shell) body{
   .panel-title{padding-inline:8px}
   .panel-tabs button{padding-inline:8px}
 }
+
+/* The supplied AK mark replaces the former text initials throughout the brand. */
+.ak-wordmark>span img,
+.landing-wordmark>span img,
+.signin-brand>span img,
+.account-mark img{display:block;width:100%;height:100%;object-fit:contain}
+.ak-wordmark>span,
+.landing-wordmark>span,
+.signin-brand>span,
+.account-mark{overflow:hidden;flex-shrink:0}
+.account-mark{padding:2px}
+.signin-brand>span{padding:2px}
