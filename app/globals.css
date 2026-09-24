@@ -919,6 +919,15 @@ html:has(.ak-shell) body{
 .quality-fps-group button:hover{background:#f0f0ec}
 .quality-fps-group button.active{background:#111;color:#fff;border-color:#111}
 
+/* Keep the 16:9 preview flush against both neighboring editor panels. */
+.stage-wrap{
+  padding:0;
+  background:#090909;
+}
+
+/* Position reset is available in the inspector; remove its duplicate toolbar icon. */
+.preview-tools-right>button[aria-label="Center text"]{display:none}
+
 /* === Studio layout rhythm: one spacing system, predictable responsive groups === */
 .ak-topbar{
   column-gap:12px;

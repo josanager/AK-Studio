@@ -446,6 +446,14 @@ Files: `app/studio.tsx`, `components/waveform-track.tsx`, `lib/audio-peaks.ts`, 
 Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
 
+## Preview canvas edge alignment (24 Sep 2026)
+
+- Removed stage-wrap padding so the 16:9 preview uses the full horizontal width between the lyrics panel and inspector; unused vertical letterbox area now matches the canvas black.
+- Removed the duplicate Center text toolbar icon; text position reset and alignment controls remain in the inspector.
+
+Files: `app/globals.css`, `PROJECT_STATUS.md`.
+
+
 ## Editor spacing and link paste (24 Sep 2026)
 
 - Link input remains editable after the free weekly creation limit is reached; only the Create action remains gated. Explicit plain-text paste handling trims clipboard whitespace and accepts YouTube / YouTube Music URLs.
