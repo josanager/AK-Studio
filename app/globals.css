@@ -975,6 +975,7 @@ html:has(.ak-shell) body{
 .panel-tabs{gap:6px;min-width:0}
 .panel-tabs button{
   min-height:32px;
+  min-width:52px;
   padding-inline:10px;
   font-size:12px;
 }
