@@ -1,4 +1,5 @@
 /** Lightweight YouTube audio fetch for Cloudflare Workers (no yt-dlp binary). */
+import { downloadFetch } from "./download-http";
 
 const VISITOR_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
@@ -36,6 +37,9 @@ export function friendlyYouTubeError(reason?: string): string {
 
 export function sanitizeDownloadError(message: string): string {
   const lower = message.toLowerCase();
+  if (lower.includes("1016") || lower.includes("origin dns")) {
+    return "The audio download server is unavailable. Please try again later. Your weekly allowance has not been used.";
+  }
   if (
     lower.includes("not a robot") ||
     lower.includes("sign in to confirm") ||
@@ -81,7 +85,7 @@ function extensionFor(contentType: string, mimeTypeHint?: string): string {
 }
 
 async function getVisitorData(): Promise<string> {
-  const response = await fetch("https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false", {
+  const response = await downloadFetch("https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false", {
     method: "POST",
     headers: { "content-type": "application/json", "user-agent": VISITOR_UA },
     body: JSON.stringify({
@@ -96,7 +100,7 @@ async function getVisitorData(): Promise<string> {
 }
 
 async function fetchVisionOSPlayer(videoId: string, visitorData: string) {
-  const response = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+  const response = await downloadFetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -149,8 +153,9 @@ function pickAudioFormat(player: Record<string, unknown>): PlayerFormat {
     throw new Error(friendlyYouTubeError(reason));
   }
 
-  // Prefer AAC/MP4 for browser playback, then highest bitrate.
+  // Preserve the highest available source bitrate; use AAC only as a tie-breaker.
   formats.sort((a, b) => {
+    if (a.bitrate !== b.bitrate) return (b.bitrate || 0) - (a.bitrate || 0);
     const aMp4 = String(a.mimeType || "").includes("mp4") ? 1 : 0;
     const bMp4 = String(b.mimeType || "").includes("mp4") ? 1 : 0;
     if (aMp4 !== bMp4) return bMp4 - aMp4;
@@ -165,6 +170,10 @@ async function readBodyWithProgress(
   range: { from: number; to: number } = { from: 0, to: 100 },
 ): Promise<Uint8Array> {
   if (!response.body) throw new Error("The audio download returned an empty body.");
+  if (/text\/|application\/json/i.test(response.headers.get("content-type") || "")) {
+    await response.body.cancel();
+    throw new Error("The download server returned an error instead of audio.");
+  }
   const total = Number(response.headers.get("content-length") || 0);
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -186,10 +195,15 @@ async function readBodyWithProgress(
     if (!value?.byteLength) continue;
     chunks.push(value);
     received += value.byteLength;
+    if (received > 96 * 1024 * 1024) {
+      await reader.cancel();
+      throw new Error("The audio file is too large. Please choose a shorter song.");
+    }
     if (total) await report(received / total);
     else await report(Math.min(0.9, received / 500_000));
   }
 
+  if (!received || (total && total !== received)) throw new Error("The audio transfer was incomplete. Please retry the download.");
   const bytes = new Uint8Array(received);
   let offset = 0;
   for (const chunk of chunks) {
@@ -198,6 +212,28 @@ async function readBodyWithProgress(
   }
   await report(1);
   return bytes;
+}
+
+async function readAudioFile(url: string, init: RequestInit, onProgress: ProgressFn | undefined, range: { from: number; to: number }) {
+  let highest = range.from;
+  const progress: ProgressFn = async value => {
+    highest = Math.max(highest, value);
+    await onProgress?.(highest);
+  };
+  for (let attempt = 0; ; attempt++) {
+    const response = await downloadFetch(url, init, 180_000);
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error("The audio file could not be fetched. Please try again later.");
+    }
+    try {
+      return { bytes: await readBodyWithProgress(response, progress, range), contentType: response.headers.get("content-type") };
+    } catch (error) {
+      await response.body?.cancel().catch(() => {});
+      if (attempt === 2 || (error instanceof Error && /too large|instead of audio/.test(error.message))) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** attempt));
+    }
+  }
 }
 
 export async function downloadYouTubeAudio(
@@ -226,17 +262,16 @@ export async function downloadYouTubeAudio(
   const format = pickAudioFormat(player);
   if (onProgress) await onProgress(8);
 
-  const audioResponse = await fetch(format.url!, {
+  const audioFile = await readAudioFile(format.url!, {
     headers: {
       "user-agent": VISITOR_UA,
       referer: "https://www.youtube.com/",
       origin: "https://www.youtube.com",
     },
-  });
-  if (!audioResponse.ok) throw new Error("The song audio could not be downloaded.");
+  }, onProgress, { from: 8, to: 100 });
 
-  const contentType = audioResponse.headers.get("content-type") || format.mimeType || "audio/mp4";
-  const bytes = await readBodyWithProgress(audioResponse, onProgress, { from: 8, to: 100 });
+  const contentType = audioFile.contentType || format.mimeType || "audio/mp4";
+  const bytes = audioFile.bytes;
   if (!bytes.byteLength) throw new Error("The song audio download was empty.");
 
   const details = asRecord(player.videoDetails);
@@ -275,14 +310,14 @@ export async function downloadViaCobalt(
     headers.authorization = apiKey.startsWith("Bearer ") ? apiKey : `Api-Key ${apiKey}`;
   }
 
-  const resolve = await fetch(`${base}/`, {
+  const resolve = await downloadFetch(`${base}/`, {
     method: "POST",
     headers,
     body: JSON.stringify({
       url: source.toString(),
       downloadMode: "audio",
       audioFormat: "mp3",
-      audioBitrate: "128",
+      audioBitrate: "320",
     }),
   });
   const payload = asRecord(await resolve.json().catch(() => null));
@@ -304,14 +339,13 @@ export async function downloadViaCobalt(
   if (!fileUrl) throw new Error("Cobalt did not return an audio file URL.");
 
   if (onProgress) await onProgress(10);
-  const audioResponse = await fetch(fileUrl, {
+  const audioFile = await readAudioFile(fileUrl, {
     headers: apiKey
       ? { authorization: apiKey.startsWith("Bearer ") ? apiKey : `Api-Key ${apiKey}` }
       : undefined,
-  });
-  if (!audioResponse.ok) throw new Error("Cobalt audio download failed.");
-  const contentType = audioResponse.headers.get("content-type") || "audio/mpeg";
-  const bytes = await readBodyWithProgress(audioResponse, onProgress, { from: 10, to: 100 });
+  }, onProgress, { from: 10, to: 100 });
+  const contentType = audioFile.contentType || "audio/mpeg";
+  const bytes = audioFile.bytes;
   return {
     bytes,
     contentType,
@@ -330,14 +364,14 @@ export async function downloadViaProcessor(
 ): Promise<AudioDownloadResult> {
   if (onProgress) await onProgress(4);
   const base = processorBase.replace(/\/$/, "");
-  const response = await fetch(`${base}/download`, {
+  const response = await downloadFetch(`${base}/download`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${webhookSecret}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({ url: source.toString(), jobId }),
-  });
+  }, 950_000);
   if (!response.ok) {
     const message = await response.text().catch(() => "");
     throw new Error(
@@ -354,14 +388,12 @@ export async function downloadViaProcessor(
   const path = manifest.files?.original;
   if (!path) throw new Error("The audio processor did not return a downloadable file.");
 
-  const fileResponse = await fetch(`${base}${path}`, {
+  if (!/^\/file\/[0-9a-f-]{36}\/original$/.test(path)) throw new Error("The processor returned an invalid audio file path.");
+  const audioFile = await readAudioFile(`${base}${path}`, {
     headers: { authorization: `Bearer ${webhookSecret}` },
-  });
-  if (!fileResponse.ok || !fileResponse.body) {
-    throw new Error("The processor audio file could not be fetched.");
-  }
-  const contentType = fileResponse.headers.get("content-type") || "audio/flac";
-  const bytes = await readBodyWithProgress(fileResponse, onProgress, { from: 12, to: 100 });
+  }, onProgress, { from: 12, to: 100 });
+  const contentType = audioFile.contentType || "audio/flac";
+  const bytes = audioFile.bytes;
   if (!bytes.byteLength) throw new Error("The processor audio download was empty.");
   return {
     bytes,

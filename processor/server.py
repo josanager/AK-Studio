@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import time
+import threading
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -13,6 +14,7 @@ ALLOWED_HOSTS = {"youtube.com", "www.youtube.com", "music.youtube.com", "youtu.b
 MODEL = os.getenv("SEPARATOR_MODEL", "model_bs_roformer_ep_317_sdr_12.9755.ckpt")
 JOBS_ROOT = Path(os.getenv("JOBS_ROOT", "/tmp/ak-studio-jobs"))
 TTL_SECONDS = 24 * 60 * 60
+JOB_LOCKS = [threading.Lock() for _ in range(64)]
 
 
 def cleanup_jobs():
@@ -105,6 +107,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path not in ("/process", "/download"):
             return self.send_error(404)
         download_only = self.path == "/download"
+        job_lock = None
         try:
             cleanup_jobs()
             length = min(int(self.headers.get("content-length", "0")), 16384)
@@ -123,7 +126,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond_error(400, "Only public YouTube and YouTube Music links are supported.")
 
             job_dir = JOBS_ROOT / job_id
-            job_dir.mkdir(parents=True, exist_ok=False)
+            job_lock = JOB_LOCKS[int(job_id.replace("-", ""), 16) % len(JOB_LOCKS)]
+            job_lock.acquire()
+            job_dir.mkdir(parents=True, exist_ok=True)
+            manifest_path = job_dir / ("download.json" if download_only else "process.json")
+            if manifest_path.is_file():
+                cached = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if cached.get("source") != (url or audio_url):
+                    return self.respond_error(409, "This job belongs to another source.")
+                return self.respond_json(200, cached["manifest"])
             source = job_dir / "source.flac"
             info = {}
 
@@ -146,27 +157,34 @@ class Handler(BaseHTTPRequestHandler):
             if download_only:
                 shutil.move(source, job_dir / "original.flac")
                 files = {"original": f"/file/{job_id}/original"}
-                return self.respond_json(200, {**info, "bpm": None, "model": "full-mix", "files": files})
+                manifest = {**info, "bpm": None, "model": "full-mix", "files": files}
+                manifest_path.write_text(json.dumps({"source": url, "manifest": manifest}), encoding="utf-8")
+                return self.respond_json(200, manifest)
 
             # Check separator binary exists — download-only images fail clearly here.
             if not shutil.which("audio-separator"):
                 raise RuntimeError("Stem separation needs the GPU processor. Full mix still plays.")
 
             separated = job_dir / "separated"
-            separated.mkdir()
+            separated.mkdir(exist_ok=True)
             run(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models"], 3600)
             lead, backing = find_stems(separated)
             shutil.move(source, job_dir / "original.flac")
             shutil.move(lead, job_dir / "lead.flac")
             shutil.move(backing, job_dir / "backing.flac")
             files = {stem: f"/file/{job_id}/{stem}" for stem in ("original", "backing", "lead")}
-            self.respond_json(200, {**info, "bpm": detect_bpm(job_dir / "original.flac"), "model": "BS-RoFormer", "files": files})
+            manifest = {**info, "bpm": detect_bpm(job_dir / "original.flac"), "model": "BS-RoFormer", "files": files}
+            manifest_path.write_text(json.dumps({"source": url or audio_url, "manifest": manifest}), encoding="utf-8")
+            self.respond_json(200, manifest)
         except subprocess.TimeoutExpired:
             self.respond_error(504, "Audio preparation timed out. Try a shorter song.")
         except FileExistsError:
             self.respond_error(409, "This processing job already exists.")
         except Exception as error:
             self.respond_error(500, str(error)[:500])
+        finally:
+            if job_lock is not None and job_lock.locked():
+                job_lock.release()
 
     def respond_json(self, status, payload):
         body = json.dumps(payload).encode()
@@ -188,5 +206,6 @@ class Handler(BaseHTTPRequestHandler):
         print(json.dumps({"message": fmt % args}), flush=True)
 
 
-cleanup_jobs()
-ThreadingHTTPServer(("0.0.0.0", int(os.getenv("PORT", "8080"))), Handler).serve_forever()
+if __name__ == "__main__":
+    cleanup_jobs()
+    ThreadingHTTPServer(("0.0.0.0", int(os.getenv("PORT", "8080"))), Handler).serve_forever()
