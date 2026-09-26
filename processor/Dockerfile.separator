@@ -1,8 +1,8 @@
 FROM python:3.12-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates ffmpeg libsndfile1 build-essential \
     && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir "audio-separator[cpu]" librosa
+RUN pip install --no-cache-dir torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir "audio-separator[cpu]==0.47.0" librosa audioread
 RUN mkdir -p /models && audio-separator --model_filename mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt --model_file_dir /models --download_model_only
 WORKDIR /app
 COPY server.py /app/server.py
