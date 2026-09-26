@@ -551,3 +551,9 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - Browser verified with two synthetic recordings under existing song/stems: vertical scrollTop moves 0 → 107; newly added clip fits within viewport; four audio elements advance with readyState 4, correct mute flags, and pause control works.
 - User's existing tab was still on the pre-multitrack build with a stalled seek. It was not reloaded because it contains a local recording.
 - Recovered user's 78,663-byte WebM microphone take directly between same-origin tabs using a temporary BroadcastChannel, without uploading it; inserted it into corrected editor at original start 0. Browser confirmed all three audio elements playing at readyState 4, microphone audible, then paused. Original tab retained; corrected tab kept as deliverable. Temporary recovery channel closed.
+# Local audio drag and drop — 2026-09-26
+
+- Timeline accepts local audio files (single or multiple) without uploading them. Names appear on clips; imported audio shares recording lane placement, playback, movement, mute, export, and auto-reveal behavior.
+- Drop position follows timeline mouse time (or playhead when dropped on headers). An unoccupied lane is reused; overlapping files get additional channels. Multi-file placement uses current refs so sequential decoding cannot overwrite earlier files or place overlapping files on the same lane accidentally.
+- Video MIME types are rejected. Existing song/stems are not downloaded or separated again.
+- Browser test dispatched file drag/drop events with two synthetic WAV files: both decoded and retained names at the same drop time on Audio 3 and Audio 4. A subsequent WAV at ~5 seconds reused Audio 3. A video/mp4 drop produced the rejection message and no clip. TypeScript and audio-timeline tests passed; test tab closed without touching user's local recordings.
