@@ -1141,8 +1141,8 @@ html:has(.ak-shell) body{
 /* Inverted editor header with a vertically centered brand lockup. */
 .ak-topbar{background:#111;color:#fff;border-bottom-color:#333}
 .ak-topbar .ak-wordmark{align-items:center;gap:8px}
-.ak-topbar .ak-wordmark>span{background:#fff;color:#111}
-.ak-topbar .ak-wordmark img{filter:invert(1)}
+.ak-topbar .ak-wordmark>span{background:transparent;color:#fff}
+.ak-topbar .ak-wordmark img{filter:none}
 .ak-topbar .ak-wordmark b{line-height:1;margin:0}
 .ak-topbar .project-ident span,
 .ak-topbar .edit-history i{color:#bdbdbd}
