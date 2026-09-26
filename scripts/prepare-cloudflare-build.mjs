@@ -7,6 +7,11 @@ const generated = JSON.parse(await readFile(generatedPath, "utf8"));
 const config = {
   ...generated,
   name: "ak-studio",
+  workers_dev: true,
+  routes: [
+    {pattern:"akstudiovocal.com",custom_domain:true},
+    {pattern:"www.akstudiovocal.com",custom_domain:true},
+  ],
   vars: {
     ...(generated.vars ?? {}),
     COMPLIMENTARY_PRO_EMAIL: "josanager@gmail.com",

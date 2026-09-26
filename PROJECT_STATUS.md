@@ -529,3 +529,9 @@ Files: `app/globals.css`, `PROJECT_STATUS.md`.
 - Narrow layouts use a single-column editor (lyrics above preview) instead of squeezing the lyrics panel beside canvas controls. At ≤640px, the upgrade action receives its own row and touch controls retain 40–44px targets.
 
 Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
+# Official domain migration — 2026-09-26
+
+- Cloudflare custom domains `akstudiovocal.com` and `www.akstudiovocal.com` attached to the existing AK Studio Worker. HTTPS root verified with HTTP 200 and browser landing-page check.
+- `workers_dev: true` explicitly preserved for existing Google callbacks, Stripe webhooks, and older media links.
+- Google OAuth additional origin and callback prepared in the existing AK Studio Web client, awaiting confirmation before saving persistent authorization. Existing OAuth URLs were not removed.
+- Until that save is confirmed, `BETTER_AUTH_URL` and `SITE_URL` remain on the previous workers.dev origin. Complete the Google save, then change both variables in `wrangler.jsonc` and `scripts/prepare-cloudflare-build.mjs`, deploy, and verify login and checkout return URLs. Domain migration is not yet end-to-end complete.

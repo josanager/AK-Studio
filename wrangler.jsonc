@@ -1,6 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ak-studio",
+  "workers_dev": true,
+  "routes": [
+    {"pattern":"akstudiovocal.com","custom_domain":true},
+    {"pattern":"www.akstudiovocal.com","custom_domain":true}
+  ],
   "main": "dist/server/index.js",
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
