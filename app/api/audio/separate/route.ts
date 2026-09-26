@@ -48,6 +48,16 @@ export async function POST(request: Request) {
     }, { status: 404 });
   }
 
+  const [backing, lead] = await Promise.all([
+    findOwnedStem(audioId, "backing", user.userId),
+    findOwnedStem(audioId, "lead", user.userId),
+  ]);
+  if (backing && lead) {
+    return Response.json({ status: "ready", progress: 100, id: audioId, mode: "stems",
+      audioUrl: `/api/audio/${audioId}?stem=original`, backingUrl: `/api/audio/${audioId}?stem=backing`,
+      vocalUrl: `/api/audio/${audioId}?stem=lead`, model: backing.meta.model, expiresIn: 86400 });
+  }
+
   if (!canRunGpuSeparator()) {
     return Response.json({ error: GPU_UNAVAILABLE_MESSAGE, code: "GPU_UNAVAILABLE" }, { status: 503 });
   }
@@ -68,7 +78,7 @@ export async function POST(request: Request) {
         audioUrl,
         youtubeUrl: youtube?.toString(),
         usageId: audioId,
-        jobId: crypto.randomUUID(),
+        jobId: audioId,
         userId: user.userId,
         send,
         skipOriginal: true,

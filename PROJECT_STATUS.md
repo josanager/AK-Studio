@@ -1,5 +1,13 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 26 septiembre: separación desplegada y probada
+
+- Servicio independiente `ak-studio-separator` en Cloudflare Containers, con Mel-RoFormer Karaoke sobre CPU (4 vCPU, 12 GiB, máximo una instancia). El descargador permanece independiente.
+- Prueba real completada: canción de 135 segundos, procesamiento de 829 segundos. Lead y backing + instrumental se almacenaron en R2 y ambas pistas se reproducen en el editor; lead queda silenciado por defecto. El modelo no garantiza aislamiento perfecto de todos los coros.
+- Jobs asíncronos, solicitudes idempotentes, reintentos de arranque y reutilización de stems existentes. La sesión debe permanecer abierta: todavía no hay una cola durable para separación.
+- Corregida la caché que devolvía el full mix antiguo como backing: stems revalidan mediante ETag y el servidor admite 304. Archivos reproducidos comparados por hash con R2. No se hizo otra exportación completa tras este último ajuste.
+- TypeScript, build y pruebas de servicio, servidor y caché pasan. Detalles y continuidad: [docs/SEPARATION_STATUS.md](docs/SEPARATION_STATUS.md). Para escalar y reducir latencia hace falta evaluar un servicio GPU; no se ha contratado ninguno.
+
 ## Actualización 26 septiembre: zoom y marca de agua
 
 - Timeline: viewport horizontal separado del contenido. Zoom 0–100 equivale a 1×–8.17×; regla, letras, cabezal y waveform comparten la misma escala. Botones, slider, Command/Control + wheel y pinch del trackpad (ctrl-wheel; Safari gesture events) actualizan el zoom y preservan el punto bajo el cursor. Scroll normal sin modificador conserva navegación horizontal. Valor 0 se restaura correctamente.

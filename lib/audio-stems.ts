@@ -141,6 +141,29 @@ type ProcessGpuOpts = {
   skipOriginal?: boolean;
 };
 
+async function fetchSeparator(url: string, init?: RequestInit): Promise<Response> {
+  // Cold provisioning can temporarily return 500/503 before the container exists.
+  // Reuse the same job ID on POST so a lost response cannot duplicate inference.
+  for (let attempt = 0; attempt < 18; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000) });
+    } catch (error) {
+      if (attempt === 17) throw new Error("The vocal separator could not start. Please try again shortly.");
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
+      continue;
+    }
+    if (response.ok || response.status < 500) return response;
+    const message = await response.clone().text().catch(() => "");
+    const cold = /provision|no container instance|container.*available|start.*container|container.*start/i.test(message);
+    if (!cold && ![502, 503, 504].includes(response.status)) return response;
+    if (attempt === 17) throw new Error("The vocal separator is still starting. Please try again shortly.");
+    await response.body?.cancel();
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+  }
+  throw new Error("The vocal separator could not start.");
+}
+
 export async function processWithGpu({
   youtubeUrl,
   audioUrl,
@@ -165,7 +188,7 @@ export async function processWithGpu({
   if (audioUrl) body.audioUrl = audioUrl;
   if (youtubeUrl) body.url = youtubeUrl;
 
-  const response = await fetch(`${processorBase}/process`, {
+  const response = await fetchSeparator(`${processorBase}/process`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}`,
@@ -180,8 +203,7 @@ export async function processWithGpu({
       response.status === 404
       || lower.includes("not found")
       || lower.includes("no such")
-      || lower.includes("audio-separator")
-      || lower.includes("separator")
+      || lower.includes("no module named")
     ) {
       throw new Error(GPU_UNAVAILABLE_MESSAGE);
     }
@@ -202,7 +224,7 @@ export async function processWithGpu({
     while (true) {
       if (Date.now() > deadline) throw new Error("Vocal separation timed out. Please try a shorter song.");
       await new Promise((resolve) => setTimeout(resolve, 10_000));
-      const statusResponse = await fetch(`${processorBase}/job/${processorJobId}`, {
+      const statusResponse = await fetchSeparator(`${processorBase}/job/${processorJobId}`, {
         headers: { authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}` },
       });
       if (!statusResponse.ok) throw new Error("The separation job could not be reached. Please try again.");
@@ -222,7 +244,10 @@ export async function processWithGpu({
   }
 
   const stored: Record<string, string> = {};
-  const stems = Object.entries(manifest.files).filter(([stem]) => !(skipOriginal && stem === "original"));
+  const stems = Object.entries(manifest.files).filter(([stem]) => ["original", "backing", "lead"].includes(stem) && !(skipOriginal && stem === "original"));
+  for (const [stem, path] of stems) {
+    if (path !== `/file/${processorJobId}/${stem}`) throw new Error("The separator returned an invalid audio file path.");
+  }
   let done = 0;
   await Promise.all(stems.map(async ([stem, path]) => {
     const fileResponse = await fetch(`${processorBase}${path}`, {

@@ -17,18 +17,26 @@ export async function cachedAudioUrl(url: string): Promise<string> {
   try {
     const cache = await caches.open(CACHE_NAME);
     const hit = await cache.match(abs);
+    const stem = new URL(abs).searchParams.get("stem");
+    // Backing initially contains the full mix and is replaced after separation.
+    // Validate mutable stems instead of returning that old full-mix cache entry.
+    const mutableStem = stem === "backing" || stem === "lead";
     if (hit) {
       const storedAt = Number(hit.headers.get("x-ak-cached-at") || 0);
-      if (storedAt && Date.now() - storedAt < TTL_MS) {
+      if (!mutableStem && storedAt && Date.now() - storedAt < TTL_MS) {
         return URL.createObjectURL(await hit.blob());
       }
-      await cache.delete(abs);
+      if (!storedAt || Date.now() - storedAt >= TTL_MS) await cache.delete(abs);
     }
-    const response = await fetch(abs, { credentials: "same-origin", cache: "force-cache" });
+    const etag = mutableStem ? hit?.headers.get("etag") : null;
+    const response = await fetch(abs, { credentials: "same-origin", cache: mutableStem ? "no-store" : "force-cache",
+      headers: etag ? { "if-none-match": etag } : undefined });
+    if (response.status === 304 && hit) return URL.createObjectURL(await hit.blob());
     if (!response.ok) return url;
     const blob = await response.blob();
     const headers = new Headers();
     headers.set("content-type", blob.type || "audio/mp4");
+    if (response.headers.get("etag")) headers.set("etag", response.headers.get("etag")!);
     headers.set("x-ak-cached-at", String(Date.now()));
     headers.set("cache-control", "private, max-age=86400");
     await cache.put(abs, new Response(blob.slice(), { status: 200, headers }));

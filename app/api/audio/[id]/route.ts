@@ -75,10 +75,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   headers.set("accept-ranges", "bytes");
   headers.set("content-disposition", `inline; filename="ak-studio-${id}-${stem}.${ext}"`);
   headers.set("x-content-type-options", "nosniff");
+  headers.set("etag", object.httpEtag);
   headers.set("cache-control", "private, max-age=86400");
   headers.set("cdn-cache-control", "private, max-age=86400");
   if (Number.isFinite(createdAt)) {
     headers.set("expires", new Date(createdAt + DAY_MS).toUTCString());
+  }
+  if (!rangeHeader && request.headers.get("if-none-match") === object.httpEtag) {
+    await object.body.cancel();
+    return new Response(null, { status: 304, headers });
   }
 
   if (rangeMatch && "range" in object && object.range) {

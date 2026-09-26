@@ -17,6 +17,8 @@ Cloudflare Workers Paid is active. The dedicated Worker `ak-studio-audio-process
 
 `Dockerfile.download` installs yt-dlp, ffmpeg, and Deno only. Maximum instances: 3, basic instance size, idle sleep: 2 minutes. This image does NOT install the optional vocal separator. The original Dockerfile remains available for a separately provisioned separation runtime; do not claim that separation works on this download-only deployment.
 
+Vocal separation is now deployed independently using `Dockerfile.separator` and `wrangler.separator.jsonc`. The production song test passed after provisioning; see `SEPARATION_STATUS.md` for model, measured CPU latency, cache fix, and verification. Do not merge the model into this lightweight downloader.
+
 Matching `PROCESSOR_WEBHOOK_SECRET` values were configured in both Workers, and `GPU_PROCESSOR_URL` now points to the permanent processor. Secrets are stored in Cloudflare, never in Git. Main Worker includes `global_fetch_strictly_public` to permit calls to the processor Worker; without it Cloudflare returned error 1042.
 
 Import calls `/download` directly (separation remains an explicit, separate action). NDJSON sends blank keepalive lines every 15 seconds during preparation; callbacks tolerate stream cancellation, though this does not guarantee a job survives a browser disconnect.
