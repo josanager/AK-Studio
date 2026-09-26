@@ -445,8 +445,6 @@ Files: `app/studio.tsx`, `components/waveform-track.tsx`, `lib/audio-peaks.ts`, 
 
 Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
-## Owner complimentary Pro access (26 Sep 2026)
-
 ## Fixed preview aspect ratios (26 Sep 2026)
 
 - The video stage contains an exact 16:9, 9:16, or 1:1 frame at every breakpoint, sizing against both available width and height with container units.
@@ -455,7 +453,7 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
 Files: `app/globals.css`.
 
-## Owner complimentary Pro access configuration
+## Owner complimentary Pro access (26 Sep 2026)
 
 - Cloudflare Worker variable `COMPLIMENTARY_PRO_EMAIL` grants Pro access only to the authenticated account `josanager@gmail.com`.
 - The server's central plan resolver returns unlimited creation and Pro export behavior for this account without creating a Stripe subscription. Other accounts retain their normal subscription and free weekly limit.
