@@ -1,5 +1,12 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 26 septiembre: duración de subtítulos e imán
+
+- Tiradores izquierdo/derecho en los bloques de letra para ajustar inicio/final (duración mínima 150 ms). Arrastrar el centro conserva la duración. Los cambios usan `width` existente y por ello se aplican al preview y a los motores de exportación.
+- Imán junto a Split/Delete: activo ajusta movimientos y extremos a pulsos `60 / BPM` (118 si no hay tempo); desactivado permite movimiento libre. Estado accesible `aria-pressed`, sliders con tiempo en segundos y flechas para ajuste fino (50 ms, Shift 500 ms sin imán).
+- Pointer capture con limpieza al terminar, cancelar, perder foco o desmontar; bloqueado durante procesamiento/exportación. Identidad estable de bloques durante la edición.
+- TypeScript, build y `scripts/test-lyric-timing.mjs` pasan. Verificados arrastres de ambos extremos y teclado en producción; revisión visual desktop y 390×844. Tiempos originales restaurados después de la prueba. No se generó un vídeo nuevo en esta ronda.
+
 ## Actualización 26 septiembre: separación desplegada y probada
 
 - Servicio independiente `ak-studio-separator` en Cloudflare Containers, con Mel-RoFormer Karaoke sobre CPU (4 vCPU, 12 GiB, máximo una instancia). El descargador permanece independiente.

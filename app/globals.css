@@ -1177,3 +1177,12 @@ html:has(.ak-shell) body{
 .stage-watermark-logo{position:absolute;top:2.5%;right:2.5%;width:5%;height:auto;opacity:.65;pointer-events:none}
 .watermark-toggle-icon{width:16px;height:16px;filter:invert(1)}
 .preview-tools-right button[aria-pressed="true"]{background:#ccc}
+.ak-shell .timeline-toolbar .timeline-snap.active{background:var(--ink);color:var(--surface)}
+.ak-shell .lyric-track button{padding-inline:14px}
+.ak-shell .lyric-track button:before{pointer-events:none}
+.lyric-clip-text{display:block;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.lyric-resize-handle{position:absolute;top:0;bottom:0;width:12px;cursor:ew-resize;touch-action:none;z-index:2;display:grid;place-items:center}
+.lyric-resize-handle.start{left:0}
+.lyric-resize-handle.end{right:0}
+.lyric-resize-handle:after{content:"";height:16px;width:2px;background:currentColor;opacity:.55}
+.lyric-resize-handle:hover:after,.lyric-resize-handle:focus-visible:after{opacity:1}
