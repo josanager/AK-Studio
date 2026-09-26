@@ -4,6 +4,7 @@ declare namespace Cloudflare {
     TEMP_BUCKET: R2Bucket;
     PROCESSING_QUEUE: Queue<ProcessingJobMessage>;
     SITE_URL?: string;
+    COMPLIMENTARY_PRO_EMAIL?: string;
     STRIPE_SECRET_KEY?: string;
     STRIPE_PRICE_PRO?: string;
     STRIPE_WEBHOOK_SECRET?: string;

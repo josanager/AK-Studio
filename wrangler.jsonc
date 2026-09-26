@@ -5,6 +5,7 @@
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
+    "COMPLIMENTARY_PRO_EMAIL": "josanager@gmail.com",
     "BETTER_AUTH_URL": "https://ak-studio.josanager.workers.dev",
     "SITE_URL": "https://ak-studio.josanager.workers.dev"
   },

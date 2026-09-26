@@ -9,6 +9,7 @@ const config = {
   name: "ak-studio",
   vars: {
     ...(generated.vars ?? {}),
+    COMPLIMENTARY_PRO_EMAIL: "josanager@gmail.com",
     BETTER_AUTH_URL: "https://ak-studio.josanager.workers.dev",
     SITE_URL: "https://ak-studio.josanager.workers.dev",
   },

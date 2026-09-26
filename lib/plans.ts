@@ -21,6 +21,10 @@ export async function ensureAppUser(user: AppUser) {
 
 export async function getPlanSnapshot(user: AppUser): Promise<PlanSnapshot> {
   await ensureAppUser(user);
+  const complimentaryEmail = env.COMPLIMENTARY_PRO_EMAIL?.trim().toLowerCase();
+  if (complimentaryEmail && user.email.trim().toLowerCase() === complimentaryEmail) {
+    return { plan: "pro", usedThisWeek: 0, weeklyLimit: null, canCreate: true };
+  }
   const now = Math.floor(Date.now() / 1000);
   const subscription = await env.DB.prepare("SELECT plan,status,current_period_end FROM subscriptions WHERE user_id=? LIMIT 1")
     .bind(user.userId).first<{ plan: string; status: string; current_period_end: number | null }>();
