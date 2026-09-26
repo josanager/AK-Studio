@@ -562,3 +562,9 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - `Add audio` folder button added beside timeline magnet. Opens a multi-file audio-only picker and inserts at playhead using the shared local import function and collision-aware lanes. Disabled while importing/processing/exporting; input resets so the same file can be chosen again.
 - Browser test clicked the actual button, captured the real filechooser, selected `/tmp/ak-picker-test-20260926.wav`, and verified filename and clip at playhead on a new channel. Temporary test tab closed; fresh updated editor tab kept open without reloading user's tab containing local recordings.
 - TypeScript passed; deployed to existing Worker and custom domains. No download or stem separation performed. Uncodixfy kept the existing toolbar style.
+
+# Audio trim and split — 2026-09-26
+
+- Audio clips are selectable. Split cuts the selected clip at playhead; Delete targets the selected audio. Edge handles trim either end, with beat snap or free movement and keyboard arrows.
+- Non-destructive source offsets are honored by playback and export mixing; waveform reflects the retained source range. Original files are unchanged.
+- TypeScript and focused split/trim/export-offset tests passed. Browser verified selection, split into two fragments, and start/end trimming. Isolated test tab closed; user's recording tabs were not reloaded. No song download or stem separation. Uncodixfy preserved toolbar styling.
