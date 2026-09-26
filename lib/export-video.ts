@@ -31,6 +31,8 @@ export type PreviewTypographyMetrics = {
   fontFamily: string;
   fontWeight: string;
   fontStyle: string;
+  title?: { x: number; y: number; fontSize: number; lineHeight: number; fontFamily: string; fontWeight: string; letterSpacing: number; color: string };
+  logo?: { x: number; y: number; width: number; height: number; opacity: number };
 };
 
 export type ExportVideoOptions = {
@@ -278,32 +280,33 @@ function paintKaraokeFrame(
   ctx.fillStyle = "#090909";
   ctx.fillRect(0, 0, width, height);
 
-  const metaSize = Math.max(10, Math.round(12 * scale));
-  ctx.fillStyle = "#929292";
-  ctx.font = `${metaSize}px "Avenir Next Condensed","Avenir Next",sans-serif`;
+  const preview = opts.previewTypography;
+  const previewScale = preview ? width / Math.max(1, preview.stageWidth) : scale;
+  const title = preview?.title;
+  const metaSize = title ? title.fontSize * previewScale : Math.max(10, Math.round(12 * scale));
+  ctx.fillStyle = title?.color || "#929292";
+  ctx.font = `${title?.fontWeight || "400"} ${metaSize}px ${title?.fontFamily || '"Avenir Next Condensed","Avenir Next",sans-serif'}`;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = `${(title?.letterSpacing || 0) * previewScale}px`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   const pad = Math.round(18 * scale);
   if (opts.track.title) {
-    ctx.fillText(opts.track.title.toUpperCase(), pad, Math.round(14 * scale));
+    ctx.fillText(opts.track.title.toUpperCase(), title ? title.x * previewScale : pad, title ? title.y * previewScale : Math.round(14 * scale));
   }
   if (opts.showFreeBadge && opts.watermarkImage) {
-    const logoWidth = width * .05;
-    const logoHeight = logoWidth * opts.watermarkImage.naturalHeight / opts.watermarkImage.naturalWidth;
+    const logo = preview?.logo;
+    const logoWidth = logo ? logo.width * previewScale : width * .05;
+    const logoHeight = logo ? logo.height * previewScale : logoWidth * opts.watermarkImage.naturalHeight / opts.watermarkImage.naturalWidth;
     ctx.save();
-    ctx.globalAlpha = .65;
-    ctx.drawImage(opts.watermarkImage, width * .975 - logoWidth, height * .025, logoWidth, logoHeight);
+    ctx.globalAlpha = logo?.opacity ?? .65;
+    ctx.drawImage(opts.watermarkImage, logo ? logo.x * previewScale : width * .975 - logoWidth, logo ? logo.y * previewScale : height * .025, logoWidth, logoHeight);
     ctx.restore();
   }
 
   const lyric = activeLyricAt(opts.lyrics, opts.time, opts.projectDuration);
   if (!lyric) return;
 
-  const preview = opts.previewTypography;
-  const previewScale = preview
-    ? Math.min(width / Math.max(1, preview.stageWidth), height / Math.max(1, preview.stageHeight))
-    : scale;
-  const fontPx = Math.max(18, preview ? preview.fontSizePx * previewScale : opts.fontSize * scale);
+  const fontPx = preview ? preview.fontSizePx * previewScale : Math.max(18, opts.fontSize * scale);
   const weight = preview?.fontWeight || (opts.textStyle.bold ? "700" : "500");
   const style = preview?.fontStyle || (opts.textStyle.italic ? "italic" : "normal");
   const family = preview?.fontFamily || `${opts.font},sans-serif`;

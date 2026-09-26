@@ -3,13 +3,14 @@ import {useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {AlignCenter,AlignLeft,AlignRight,Captions,Check,ChevronDown,CircleUserRound,Download,FolderOpen,Gauge,HelpCircle,Link2,LoaderCircle,Maximize2,Magnet,Mic2,Minus,Music,Pause,Play,Plus,Scissors,Trash2,Undo2,Volume2,VolumeX,WandSparkles,ZoomIn,ZoomOut} from "lucide-react";
+import {measurePreview} from "../lib/preview-metrics";
 import {editLyricTiming,type TimingAction} from "../lib/lyric-timing";
 import type {PlanSnapshot} from "../lib/plans";
 import {cachedAudioUrl,revokeAudioUrl} from "../lib/audio-cache";
 import {computeAudioPeaks} from "../lib/audio-peaks";
 import {WaveformTrack} from "../components/waveform-track";
 import type {SavedProjectSummary,StudioProjectState} from "../lib/studio-project";
-import {canExportVideoRoughly,downloadBlob,exportKaraokeVideo,type ExportFps,type ExportQuality,type PreviewTypographyMetrics} from "../lib/export-video";
+import {canExportVideoRoughly,downloadBlob,exportKaraokeVideo,type ExportFps,type ExportQuality} from "../lib/export-video";
 type Lyric={text:string;start:number;width:number}; type Track={title:string;artist:string}; type ApiLyric={text:string;start:number;end:number};
 const formatTime=(seconds:number)=>{const whole=Math.round(seconds);return`${Math.floor(whole/60)}:${String(whole%60).padStart(2,"0")}`};
 const youtubeHosts=new Set(["youtube.com","www.youtube.com","music.youtube.com","youtu.be","m.youtube.com"]);
@@ -268,23 +269,7 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
   try{
     await document.fonts?.ready;
     const stage=stageRef.current;
-    const lyricText=stage?.querySelector<HTMLElement>(".lyric-canvas p");
-    const lyricContainer=stage?.querySelector<HTMLElement>(".lyric-canvas");
-    let previewTypography:PreviewTypographyMetrics|undefined;
-    if(stage&&lyricText&&lyricContainer){
-      const stageBox=stage.getBoundingClientRect();
-      const computed=window.getComputedStyle(lyricText);
-      const containerComputed=window.getComputedStyle(lyricContainer);
-      const fontSizePx=Number.parseFloat(computed.fontSize)||fontSize;
-      const lineHeightPx=Number.parseFloat(computed.lineHeight)||fontSizePx*lineHeight;
-      const letterSpacingPx=Number.parseFloat(computed.letterSpacing)||0;
-      let maxWidthPx=computed.maxWidth.endsWith("px")?Number.parseFloat(computed.maxWidth):0;
-      if(!maxWidthPx){
-        const probe=document.createElement("canvas").getContext("2d");
-        if(probe){probe.font=`${computed.fontStyle} ${computed.fontWeight} ${computed.fontSize} ${computed.fontFamily}`;maxWidthPx=probe.measureText("0").width*15}
-      }
-      previewTypography={stageWidth:stageBox.width,stageHeight:stageBox.height,fontSizePx,lineHeightPx,letterSpacingPx,maxWidthPx:maxWidthPx||stageBox.width*.82,lyricHorizontalPaddingPx:(Number.parseFloat(containerComputed.paddingLeft)||0)+(Number.parseFloat(containerComputed.paddingRight)||0),underlineGapPx:12,fontFamily:computed.fontFamily,fontWeight:computed.fontWeight,fontStyle:computed.fontStyle};
-    }
+    const previewTypography=stage?measurePreview(stage,{font,fontSize,lineHeight,bold:textStyle.bold,italic:textStyle.italic}):undefined;
     const includeBacking=!(muted||stemMuted.backing);
     const includeVocal=Boolean(vocalSrc)&&!(muted||stemMuted.vocal);
     // If both stems muted, still export backing (or full mix) so the file isn’t silent-by-accident

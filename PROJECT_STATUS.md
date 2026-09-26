@@ -1,5 +1,13 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 26 septiembre: escala del canvas al exportar
+
+- Eliminado el fallback de tamaño pequeño cuando el cabezal está entre letras: `lib/preview-metrics.ts` mide la tipografía CSS con una sonda invisible temporal si no hay texto activo; la sonda se elimina inmediatamente.
+- Título superior y logo usan tamaño/posición reales del DOM, no tamaños alternativos. Letra, título y marca comparten la escala `ancho exportado / ancho visible del stage` en ambos motores.
+- El ancho de ajuste de línea respeta `max-width` y el padding del contenedor (incluidos valores porcentuales). No se cambió el diseño visible.
+- `scripts/test-export-sizes.mjs` comprueba proporciones de los tres elementos en 1080p, 2K y 4K. TypeScript y build pasan.
+- Prueba de producción: exportación iniciada con cabezal en 0 y sin letra activa; completó MP4 1920×1080 a 30 fps. Cabezal restaurado. No se realizó comparación píxel a píxel del archivo descargado.
+
 ## Actualización 26 septiembre: duración de subtítulos e imán
 
 - Tiradores izquierdo/derecho en los bloques de letra para ajustar inicio/final (duración mínima 150 ms). Arrastrar el centro conserva la duración. Los cambios usan `width` existente y por ello se aplican al preview y a los motores de exportación.
