@@ -447,6 +447,16 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
 ## Owner complimentary Pro access (26 Sep 2026)
 
+## Fixed preview aspect ratios (26 Sep 2026)
+
+- The video stage contains an exact 16:9, 9:16, or 1:1 frame at every breakpoint, sizing against both available width and height with container units.
+- The surrounding workspace is gray so unused space cannot be mistaken for exported video content.
+- Verified production desktop dimensions: horizontal 683×384.1875 (16:9), vertical 286.875×510 (9:16). Both orientations also fit a 390×844 mobile viewport; fractional CSS pixels introduce only subpixel rounding.
+
+Files: `app/globals.css`.
+
+## Owner complimentary Pro access configuration
+
 - Cloudflare Worker variable `COMPLIMENTARY_PRO_EMAIL` grants Pro access only to the authenticated account `josanager@gmail.com`.
 - The server's central plan resolver returns unlimited creation and Pro export behavior for this account without creating a Stripe subscription. Other accounts retain their normal subscription and free weekly limit.
 - Remove or clear this Worker variable to revoke the exception; keep the deployment configuration in sync.
