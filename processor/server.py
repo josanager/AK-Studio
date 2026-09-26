@@ -15,6 +15,8 @@ MODEL = os.getenv("SEPARATOR_MODEL", "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
 JOBS_ROOT = Path(os.getenv("JOBS_ROOT", "/tmp/ak-studio-jobs"))
 TTL_SECONDS = 24 * 60 * 60
 JOB_LOCKS = [threading.Lock() for _ in range(64)]
+ACTIVE_JOBS = {}
+ACTIVE_LOCK = threading.Lock()
 
 
 def cleanup_jobs():
@@ -89,6 +91,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
             return self.respond_json(200, {"ok": True, "model": MODEL})
+        job = re.fullmatch(r"/job/([0-9a-f-]{36})", self.path)
+        if job:
+            with ACTIVE_LOCK:
+                status = ACTIVE_JOBS.get(job.group(1))
+            return self.respond_json(200 if status else 404, status or {"status": "missing"})
         match = re.fullmatch(r"/file/([0-9a-f-]{36})/(original|backing|lead)", self.path)
         if not match:
             return self.send_error(404)
@@ -107,23 +114,53 @@ class Handler(BaseHTTPRequestHandler):
         if self.path not in ("/process", "/download"):
             return self.send_error(404)
         download_only = self.path == "/download"
+        length = min(int(self.headers.get("content-length", "0")), 16384)
+        try:
+            payload = json.loads(self.rfile.read(length))
+        except (ValueError, TypeError):
+            return self.respond_error(400, "Invalid request.")
+        job_id = str(payload.get("jobId", ""))
+        if not re.fullmatch(r"[0-9a-f-]{36}", job_id):
+            return self.respond_error(400, "Invalid processing job.")
+        if not download_only:
+            with ACTIVE_LOCK:
+                existing = ACTIVE_JOBS.get(job_id)
+                if existing:
+                    return self.respond_json(202, {"status": existing["status"], "jobId": job_id})
+                if any(job["status"] == "processing" for job in ACTIVE_JOBS.values()):
+                    return self.respond_error(429, "The separator is busy. Try again shortly.")
+                ACTIVE_JOBS[job_id] = {"status": "processing", "startedAt": time.time()}
+            def work():
+                try:
+                    manifest = self.perform_job(payload, False)
+                    result = {"status": "ready", "manifest": manifest}
+                except Exception as error:
+                    result = {"status": "error", "error": str(error)[:500]}
+                with ACTIVE_LOCK:
+                    ACTIVE_JOBS[job_id] = result
+            threading.Thread(target=work, daemon=True).start()
+            return self.respond_json(202, {"status": "processing", "jobId": job_id})
+        try:
+            return self.respond_json(200, self.perform_job(payload, True))
+        except Exception as error:
+            return self.respond_error(500, str(error)[:500])
+
+    def perform_job(self, payload, download_only):
         job_lock = None
         try:
             cleanup_jobs()
-            length = min(int(self.headers.get("content-length", "0")), 16384)
-            payload = json.loads(self.rfile.read(length))
             url = str(payload.get("url", "") or "")
             audio_url = str(payload.get("audioUrl", "") or "")
             job_id = str(payload.get("jobId", ""))
             if not re.fullmatch(r"[0-9a-f-]{36}", job_id):
-                return self.respond_error(400, "Invalid processing job.")
+                raise ValueError("Invalid processing job.")
 
             has_youtube = bool(url) and urlparse(url).hostname in ALLOWED_HOSTS
             has_audio = bool(audio_url) and urlparse(audio_url).scheme in ("http", "https")
             if not has_youtube and not has_audio:
-                return self.respond_error(400, "Only public YouTube links or a stored audio URL are supported.")
+                raise ValueError("Only public YouTube links or a stored audio URL are supported.")
             if download_only and not has_youtube:
-                return self.respond_error(400, "Only public YouTube and YouTube Music links are supported.")
+                raise ValueError("Only public YouTube and YouTube Music links are supported.")
 
             job_dir = JOBS_ROOT / job_id
             job_lock = JOB_LOCKS[int(job_id.replace("-", ""), 16) % len(JOB_LOCKS)]
@@ -133,8 +170,8 @@ class Handler(BaseHTTPRequestHandler):
             if manifest_path.is_file():
                 cached = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if cached.get("source") != (url or audio_url):
-                    return self.respond_error(409, "This job belongs to another source.")
-                return self.respond_json(200, cached["manifest"])
+                    raise ValueError("This job belongs to another source.")
+                return cached["manifest"]
             source = job_dir / "source.flac"
             info = {}
 
@@ -159,11 +196,11 @@ class Handler(BaseHTTPRequestHandler):
                 files = {"original": f"/file/{job_id}/original"}
                 manifest = {**info, "bpm": None, "model": "full-mix", "files": files}
                 manifest_path.write_text(json.dumps({"source": url, "manifest": manifest}), encoding="utf-8")
-                return self.respond_json(200, manifest)
+                return manifest
 
             # Check separator binary exists — download-only images fail clearly here.
             if not shutil.which("audio-separator"):
-                raise RuntimeError("Stem separation needs the GPU processor. Full mix still plays.")
+                raise RuntimeError("The vocal separation service is not installed. Full mix still plays.")
 
             separated = job_dir / "separated"
             separated.mkdir(exist_ok=True)
@@ -176,13 +213,9 @@ class Handler(BaseHTTPRequestHandler):
             files = {stem: f"/file/{job_id}/{stem}" for stem in ("original", "backing", "lead")}
             manifest = {**info, "bpm": detect_bpm(job_dir / "original.flac"), "model": "Mel-RoFormer Karaoke", "files": files}
             manifest_path.write_text(json.dumps({"source": url or audio_url, "manifest": manifest}), encoding="utf-8")
-            self.respond_json(200, manifest)
+            return manifest
         except subprocess.TimeoutExpired:
-            self.respond_error(504, "Audio preparation timed out. Try a shorter song.")
-        except FileExistsError:
-            self.respond_error(409, "This processing job already exists.")
-        except Exception as error:
-            self.respond_error(500, str(error)[:500])
+            raise RuntimeError("Audio preparation timed out. Try a shorter song.")
         finally:
             if job_lock is not None and job_lock.locked():
                 job_lock.release()

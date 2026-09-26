@@ -5,5 +5,6 @@
   "containers": [{ "class_name": "AudioProcessor", "image": "./Dockerfile.separator", "instance_type": "standard-4", "max_instances": 1 }],
   "durable_objects": { "bindings": [{ "name": "AUDIO_PROCESSOR", "class_name": "AudioProcessor" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AudioProcessor"] }],
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "vars": { "SERVICE_MODE": "separator" }
 }

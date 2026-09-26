@@ -124,7 +124,7 @@ export async function verifyStemAccessToken(
 }
 
 export const GPU_UNAVAILABLE_MESSAGE =
-  "Stem separation needs the GPU processor. Full mix still plays.";
+  "The vocal separation service is not configured. Full mix still plays.";
 
 export function canRunGpuSeparator() {
   return Boolean(env.SEPARATOR_PROCESSOR_URL && env.SEPARATOR_WEBHOOK_SECRET);
@@ -188,8 +188,7 @@ export async function processWithGpu({
     throw new Error(sanitizeDownloadError(message.slice(0, 300) || GPU_UNAVAILABLE_MESSAGE));
   }
 
-  await send({ status: "downloading", progress: 55, phase: "storing", message: "Saving stems…" });
-  const manifest = await response.json() as {
+  type Manifest = {
     files?: Record<string, string>;
     title?: string;
     artist?: string;
@@ -197,6 +196,24 @@ export async function processWithGpu({
     bpm?: number;
     model?: string;
   };
+  let manifest: Manifest;
+  if (response.status === 202) {
+    const deadline = Date.now() + 32 * 60_000;
+    while (true) {
+      if (Date.now() > deadline) throw new Error("Vocal separation timed out. Please try a shorter song.");
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
+      const statusResponse = await fetch(`${processorBase}/job/${processorJobId}`, {
+        headers: { authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}` },
+      });
+      if (!statusResponse.ok) throw new Error("The separation job could not be reached. Please try again.");
+      const status = await statusResponse.json() as { status: string; manifest?: Manifest; error?: string };
+      if (status.status === "error") throw new Error(status.error || "Vocal separation failed.");
+      if (status.status === "ready" && status.manifest) { manifest = status.manifest; break; }
+    }
+  } else {
+    manifest = await response.json() as Manifest;
+  }
+  await send({ status: "downloading", progress: 55, phase: "storing", message: "Saving stems…" });
   if (!manifest.files?.backing || !manifest.files?.lead) {
     throw new Error("The separator returned an incomplete result.");
   }

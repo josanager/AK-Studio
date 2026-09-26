@@ -29,7 +29,7 @@ function sourceURL(value: string) {
  * Separates lead vocal + backing from an existing project audio in R2.
  * Prefers feeding the stored original to the GPU processor via a short-lived
  * signed audioUrl so YouTube is not re-downloaded when possible.
- * Falls back to the YouTube `url` when the processor cannot fetch R2 audio.
+ * Uses the existing R2 file; a failed inference is never repeated automatically.
  */
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -64,8 +64,7 @@ export async function POST(request: Request) {
       phase: "processor",
       message: "Separating lead vocal…",
     });
-    try {
-      await processWithGpu({
+    await processWithGpu({
         audioUrl,
         youtubeUrl: youtube?.toString(),
         usageId: audioId,
@@ -74,30 +73,5 @@ export async function POST(request: Request) {
         send,
         skipOriginal: true,
       });
-    } catch (firstError) {
-      // Signed R2 URL may be unreachable from a download-only tunnel — retry via YouTube.
-      if (youtube) {
-        await send({
-          status: "downloading",
-          progress: 8,
-          phase: "processor",
-          message: "Retrying stem separation from the source link…",
-        });
-        try {
-          await processWithGpu({
-            youtubeUrl: youtube.toString(),
-            usageId: audioId,
-            jobId: crypto.randomUUID(),
-            userId: user.userId,
-            send,
-            skipOriginal: true,
-          });
-          return;
-        } catch {
-          /* fall through to first error */
-        }
-      }
-      throw firstError;
-    }
   });
 }
