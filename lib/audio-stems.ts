@@ -7,11 +7,23 @@ const STEM_EXTS = ["m4a", "mp4", "webm", "mp3", "ogg", "flac"] as const;
 
 export function ndjsonResponse(run: (send: (event: NdjsonEvent) => Promise<void>) => Promise<void>) {
   const encoder = new TextEncoder();
+  let disconnected = false;
   const stream = new ReadableStream<Uint8Array>({
+    cancel() { disconnected = true; },
     async start(controller) {
       const send = async (event: NdjsonEvent) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        if (!disconnected) {
+          try { controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`)); }
+          catch { disconnected = true; }
+        }
       };
+      // Keep the connection alive during yt-dlp preparation, without fake progress.
+      const heartbeat = setInterval(() => {
+        if (!disconnected) {
+          try { controller.enqueue(encoder.encode("\n")); }
+          catch { disconnected = true; }
+        }
+      }, 15_000);
       try {
         await run(send);
       } catch (error) {
@@ -22,7 +34,8 @@ export function ndjsonResponse(run: (send: (event: NdjsonEvent) => Promise<void>
           error: sanitizeDownloadError(raw),
         });
       } finally {
-        controller.close();
+        clearInterval(heartbeat);
+        if (!disconnected) controller.close();
       }
     },
   });

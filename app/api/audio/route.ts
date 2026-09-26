@@ -9,9 +9,7 @@ import {
   type AudioDownloadResult,
 } from "../../../lib/youtube-download";
 import {
-  canRunGpuSeparator,
   ndjsonResponse,
-  processWithGpu,
   storeStem,
   type NdjsonEvent,
 } from "../../../lib/audio-stems";
@@ -142,37 +140,17 @@ export async function POST(request: Request) {
     }
   }
 
-  const canSeparate = canRunGpuSeparator();
-
   return ndjsonResponse(async (send) => {
     try {
       await send({
         status: "downloading",
         progress: 0,
-        phase: canSeparate ? "processor" : "download",
+        phase: "download",
         plan: plan.plan,
         message: "Downloading song…",
       });
-      if (canSeparate) {
-        try {
-          await processWithGpu({
-            youtubeUrl: source.toString(),
-            usageId,
-            userId: user.userId,
-            send,
-          });
-        } catch {
-          await send({
-            status: "downloading",
-            progress: 8,
-            phase: "download",
-            message: "Stem separation unavailable — downloading full mix…",
-          });
-          await processFullMix(source, usageId, user.userId, send);
-        }
-      } else {
-        await processFullMix(source, usageId, user.userId, send);
-      }
+      // Separation is explicit; never delay song import with a second download.
+      await processFullMix(source, usageId, user.userId, send);
       if (plan.plan === "free") {
         await env.DB.prepare("UPDATE weekly_usage SET status='completed',completed_at=? WHERE id=?")
           .bind(Math.floor(Date.now() / 1000), usageId).run();
