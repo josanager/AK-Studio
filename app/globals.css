@@ -1137,3 +1137,19 @@ html:has(.ak-shell) body{
 .account-mark{overflow:hidden;flex-shrink:0}
 .account-mark{padding:2px}
 .signin-brand>span{padding:2px}
+
+/* Inverted editor header with a vertically centered brand lockup. */
+.ak-topbar{background:#111;color:#fff;border-bottom-color:#333}
+.ak-topbar .ak-wordmark{align-items:center;gap:8px}
+.ak-topbar .ak-wordmark>span{background:#fff;color:#111}
+.ak-topbar .ak-wordmark img{filter:invert(1)}
+.ak-topbar .ak-wordmark b{line-height:1;margin:0}
+.ak-topbar .project-ident span,
+.ak-topbar .edit-history i{color:#bdbdbd}
+.ak-topbar .icon-button:hover,
+.ak-topbar .account-button:hover{background:#303030}
+.ak-topbar .render-button{background:#fff;color:#111}
+.ak-topbar .render-button:hover:not(:disabled){background:#e5e5e5}
+.ak-topbar .export-menu-panel{color:#111}
+.ak-topbar button:focus-visible,
+.ak-topbar a:focus-visible{outline-color:#fff}

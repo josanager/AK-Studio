@@ -445,6 +445,14 @@ Files: `app/studio.tsx`, `components/waveform-track.tsx`, `lib/audio-peaks.ts`, 
 
 Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
+## Editor header colors and brand alignment (26 Sep 2026)
+
+- Inverted the editor header to black with white text and icons; the Export button and AK symbol use white surfaces with black content.
+- Centered the AK symbol and Studio text vertically using flex alignment and a consistent text line height.
+- Preserved readable hover, keyboard focus, secondary labels, and the export dropdown on the dark header.
+
+Files: `app/globals.css`.
+
 
 ## Preview canvas edge alignment (24 Sep 2026)
 
