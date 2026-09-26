@@ -2,7 +2,7 @@ import { Container, getContainer } from "@cloudflare/containers";
 
 export class AudioProcessor extends Container {
   defaultPort = 8080;
-  sleepAfter = "10m";
+  sleepAfter = "2m";
 }
 
 type Env = { AUDIO_PROCESSOR: DurableObjectNamespace<AudioProcessor>; PROCESSOR_WEBHOOK_SECRET: string };
@@ -11,7 +11,7 @@ export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
     if (url.pathname === "/health") return getContainer(env.AUDIO_PROCESSOR, "health").fetch(new Request("http://container/health"));
-    if (request.headers.get("authorization") !== `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}`) return new Response("Unauthorized", { status: 401 });
+    if (!env.PROCESSOR_WEBHOOK_SECRET || request.headers.get("authorization") !== `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}`) return new Response("Unauthorized", { status: 401 });
     if ((url.pathname === "/process" || url.pathname === "/download") && request.method === "POST") {
       const payload = await request.clone().json() as { jobId?:string };
       if (!payload.jobId || !/^[0-9a-f-]{36}$/i.test(payload.jobId)) return new Response("Invalid job", { status:400 });
