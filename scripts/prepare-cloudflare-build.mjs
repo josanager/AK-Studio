@@ -14,7 +14,7 @@ const config = {
     SITE_URL: "https://ak-studio.josanager.workers.dev",
   },
   compatibility_date: "2026-09-20",
-  compatibility_flags: Array.from(new Set([...(generated.compatibility_flags ?? []), "nodejs_compat"])),
+  compatibility_flags: Array.from(new Set([...(generated.compatibility_flags ?? []), "nodejs_compat", "global_fetch_strictly_public"])),
   d1_databases: [{
     binding: "DB",
     database_name: "ak-studio",
