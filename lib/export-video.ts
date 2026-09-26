@@ -60,6 +60,7 @@ export type ExportVideoOptions = {
   showFreeBadge?: boolean;
   watermarkImage?: HTMLImageElement;
   backingUrl: string | null;
+  audioClips?: {url:string;start:number;duration:number}[];
   vocalUrl: string | null;
   includeBacking: boolean;
   includeVocal: boolean;
@@ -425,20 +426,21 @@ async function decodeAudioUrl(url: string, ctx: BaseAudioContext): Promise<Audio
 
 function mixAudioBuffers(
   ctx: OfflineAudioContext | AudioContext,
-  buffers: { buffer: AudioBuffer; gain: number }[],
+  buffers: { buffer: AudioBuffer; gain: number; start?:number; duration?:number }[],
   durationSec: number,
 ): AudioBuffer {
   const sampleRate = buffers[0]?.buffer.sampleRate || 48000;
   const length = Math.max(1, Math.ceil(durationSec * sampleRate));
   const channels = Math.max(1, ...buffers.map((b) => b.buffer.numberOfChannels), 2);
   const out = ctx.createBuffer(channels, length, sampleRate);
-  for (const { buffer, gain } of buffers) {
+  for (const { buffer, gain, start=0, duration=buffer.duration } of buffers) {
     if (gain <= 0) continue;
     for (let c = 0; c < channels; c++) {
       const src = buffer.getChannelData(Math.min(c, buffer.numberOfChannels - 1));
       const dst = out.getChannelData(c);
-      const n = Math.min(src.length, length);
-      for (let i = 0; i < n; i++) dst[i]! += src[i]! * gain;
+      const offset=Math.round(start*sampleRate);
+      const n = Math.min(src.length, Math.ceil(duration*sampleRate), length-offset);
+      for (let i = 0; i < n; i++) dst[i+offset]! += src[i]! * gain;
     }
   }
   // Soft clip
@@ -456,14 +458,14 @@ async function buildMixedAudio(
   opts: ExportVideoOptions,
   onPhaseProgress?: (fraction: number) => void,
 ): Promise<AudioBuffer | null> {
-  if (!opts.backingUrl && !opts.vocalUrl) return null;
+  if (!opts.backingUrl && !opts.vocalUrl && !opts.audioClips?.length) return null;
   const probe = new AudioContext();
   try {
     if (probe.state === "suspended") {
       await probe.resume().catch(() => undefined);
     }
-    const parts: { buffer: AudioBuffer; gain: number }[] = [];
-    const jobs: { url: string; gain: number; label: string }[] = [];
+    const parts: { buffer: AudioBuffer; gain: number; start?:number; duration?:number }[] = [];
+    const jobs: { url: string; gain: number; label: string; start?:number; duration?:number }[] = (opts.audioClips??[]).map((c,i)=>({...c,gain:1,label:`clip ${i+1}`}));
     if (opts.backingUrl && opts.includeBacking) {
       jobs.push({ url: opts.backingUrl, gain: 1, label: "backing" });
     }
@@ -488,7 +490,8 @@ async function buildMixedAudio(
         `Timed out decoding ${job.label} audio for export.`,
         opts.signal,
       );
-      if (decoded) parts.push({ buffer: decoded, gain: job.gain });
+      if (decoded) parts.push({ buffer: decoded, gain: job.gain,start:job.start,duration:job.duration });
+      else throw new Error(`Could not decode ${job.label} for export.`);
       onPhaseProgress?.((i + 1) / Math.max(jobs.length, 1));
       await yieldToUi();
     }

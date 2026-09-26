@@ -535,3 +535,11 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - `workers_dev: true` explicitly preserved for existing Google callbacks, Stripe webhooks, and older media links.
 - Google OAuth additional origin and callback prepared in the existing AK Studio Web client, awaiting confirmation before saving persistent authorization. Existing OAuth URLs were not removed.
 - Until that save is confirmed, `BETTER_AUTH_URL` and `SITE_URL` remain on the previous workers.dev origin. Complete the Google save, then change both variables in `wrangler.jsonc` and `scripts/prepare-cloudflare-build.mjs`, deploy, and verify login and checkout return URLs. Domain migration is not yet end-to-end complete.
+# Multitrack microphone recording — 2026-09-26
+
+- Completed takes offer `Add to timeline` and `Record again`. Re-recording discards the pending local take and starts the selected microphone again.
+- Recorded clips insert at the playhead; an available non-overlapping audio lane is reused, otherwise a new lane is added. Existing song/stems and lyric track are preserved.
+- Audio clips support horizontal/vertical pointer dragging and arrow-key positioning; beat snapping follows the magnet toggle. Audio lane headers support drag reordering and accessible up/down buttons. Each lane has mute and clips have remove controls.
+- Playback uses an independent timeline clock and synchronizes all clips to their start offsets. Export mixes the current clips at the same offsets, honoring lane/global mute. Recording blobs remain local and are not persisted to R2 or project storage.
+- Verified real MediaRecorder flow with a synthetic microphone in an isolated browser tab: re-record, add on occupied song, new lane, pointer and keyboard movement, channel reordering, and concurrent playback. Hardware microphone was not accessed. Desktop/mobile layout inspected.
+- `npx tsc --noEmit`, `scripts/test-audio-timeline.mjs`, `scripts/test-export-sizes.mjs`, and `scripts/test-export-cancel.mjs` pass.
