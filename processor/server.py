@@ -49,8 +49,8 @@ def detect_bpm(audio_path):
 
 def find_stems(directory):
     files = list(Path(directory).glob("*.flac"))
-    vocals = next((p for p in files if "vocal" in p.name.lower() and "instrument" not in p.name.lower()), None)
-    instrumental = next((p for p in files if "instrument" in p.name.lower() or "no_vocal" in p.name.lower()), None)
+    vocals = next((p for p in files if p.stem == "lead"), None)
+    instrumental = next((p for p in files if p.stem == "backing"), None)
     if not vocals or not instrumental:
         raise RuntimeError("The open-source separator did not produce both karaoke stems.")
     return vocals, instrumental
@@ -167,13 +167,14 @@ class Handler(BaseHTTPRequestHandler):
 
             separated = job_dir / "separated"
             separated.mkdir(exist_ok=True)
-            run(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models"], 3600)
+            names = json.dumps({"Vocals": "lead", "Instrumental": "backing", "Lead Vocals": "lead", "Backing Vocals": "backing"})
+            run(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models", "--custom_output_names", names, "--mdxc_overlap", "2", "--mdxc_batch_size", "1"], 1800)
             lead, backing = find_stems(separated)
             shutil.move(source, job_dir / "original.flac")
             shutil.move(lead, job_dir / "lead.flac")
             shutil.move(backing, job_dir / "backing.flac")
             files = {stem: f"/file/{job_id}/{stem}" for stem in ("original", "backing", "lead")}
-            manifest = {**info, "bpm": detect_bpm(job_dir / "original.flac"), "model": "BS-RoFormer", "files": files}
+            manifest = {**info, "bpm": detect_bpm(job_dir / "original.flac"), "model": "Mel-RoFormer Karaoke", "files": files}
             manifest_path.write_text(json.dumps({"source": url or audio_url, "manifest": manifest}), encoding="utf-8")
             self.respond_json(200, manifest)
         except subprocess.TimeoutExpired:

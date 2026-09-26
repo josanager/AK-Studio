@@ -127,7 +127,7 @@ export const GPU_UNAVAILABLE_MESSAGE =
   "Stem separation needs the GPU processor. Full mix still plays.";
 
 export function canRunGpuSeparator() {
-  return Boolean(env.GPU_PROCESSOR_URL && env.PROCESSOR_WEBHOOK_SECRET);
+  return Boolean(env.SEPARATOR_PROCESSOR_URL && env.SEPARATOR_WEBHOOK_SECRET);
 }
 
 type ProcessGpuOpts = {
@@ -150,14 +150,14 @@ export async function processWithGpu({
   send,
   skipOriginal = false,
 }: ProcessGpuOpts) {
-  if (!env.GPU_PROCESSOR_URL || !env.PROCESSOR_WEBHOOK_SECRET) {
+  if (!env.SEPARATOR_PROCESSOR_URL || !env.SEPARATOR_WEBHOOK_SECRET) {
     throw new Error(GPU_UNAVAILABLE_MESSAGE);
   }
   if (!youtubeUrl && !audioUrl) {
     throw new Error("A YouTube link or stored audio file is required for stem separation.");
   }
 
-  const processorBase = env.GPU_PROCESSOR_URL.replace(/\/$/, "");
+  const processorBase = env.SEPARATOR_PROCESSOR_URL.replace(/\/$/, "");
   const processorJobId = jobId || crypto.randomUUID();
   await send({ status: "downloading", progress: 5, phase: "processor", message: "Separating lead vocal…" });
 
@@ -168,7 +168,7 @@ export async function processWithGpu({
   const response = await fetch(`${processorBase}/process`, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}`,
+      authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}`,
       "content-type": "application/json",
     },
     body: JSON.stringify(body),
@@ -209,7 +209,7 @@ export async function processWithGpu({
   let done = 0;
   await Promise.all(stems.map(async ([stem, path]) => {
     const fileResponse = await fetch(`${processorBase}${path}`, {
-      headers: { authorization: `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}` },
+      headers: { authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}` },
     });
     if (!fileResponse.ok || !fileResponse.body) throw new Error(`The ${stem} stem could not be stored.`);
     stored[stem] = await storeStem(
