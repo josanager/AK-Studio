@@ -557,3 +557,8 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - Drop position follows timeline mouse time (or playhead when dropped on headers). An unoccupied lane is reused; overlapping files get additional channels. Multi-file placement uses current refs so sequential decoding cannot overwrite earlier files or place overlapping files on the same lane accidentally.
 - Video MIME types are rejected. Existing song/stems are not downloaded or separated again.
 - Browser test dispatched file drag/drop events with two synthetic WAV files: both decoded and retained names at the same drop time on Audio 3 and Audio 4. A subsequent WAV at ~5 seconds reused Audio 3. A video/mp4 drop produced the rejection message and no clip. TypeScript and audio-timeline tests passed; test tab closed without touching user's local recordings.
+# Audio file picker — 2026-09-26
+
+- `Add audio` folder button added beside timeline magnet. Opens a multi-file audio-only picker and inserts at playhead using the shared local import function and collision-aware lanes. Disabled while importing/processing/exporting; input resets so the same file can be chosen again.
+- Browser test clicked the actual button, captured the real filechooser, selected `/tmp/ak-picker-test-20260926.wav`, and verified filename and clip at playhead on a new channel. Temporary test tab closed; fresh updated editor tab kept open without reloading user's tab containing local recordings.
+- TypeScript passed; deployed to existing Worker and custom domains. No download or stem separation performed. Uncodixfy kept the existing toolbar style.
