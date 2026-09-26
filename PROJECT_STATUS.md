@@ -1,5 +1,12 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 26 septiembre: zoom y marca de agua
+
+- Timeline: viewport horizontal separado del contenido. Zoom 0–100 equivale a 1×–8.17×; regla, letras, cabezal y waveform comparten la misma escala. Botones, slider, Command/Control + wheel y pinch del trackpad (ctrl-wheel; Safari gesture events) actualizan el zoom y preservan el punto bajo el cursor. Scroll normal sin modificador conserva navegación horizontal. Valor 0 se restaura correctamente.
+- Eliminada la raya decorativa junto a la letra en el preview y en ambos motores de exportación.
+- Logo `logoak.svg` blanco/transparente en esquina superior derecha, ancho 5%, margen 2.5%, opacidad .65. Botón `Preview watermark` muestra/oculta en preview. Pro respeta el interruptor al exportar; Free fuerza watermark en exportación. Export carga el mismo SVG antes de dibujar.
+- Verificado en producción: slider reduce ancho de contenido al ancho del viewport (1101 px) en zoom 0; Command-wheel 62→80; ctrl-wheel 80→69; toggle on/off; revisión visual desktop y móvil 390×844. Se restauró el tamaño del navegador. TypeScript y build pasan. No se realizó una exportación completa de la canción en esta ronda.
+
 Actualizado: 22 de septiembre de 2026 (handoff para la siguiente IA)
 
 ## Handoff para la siguiente IA (léeme primero)

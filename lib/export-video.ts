@@ -54,6 +54,7 @@ export type ExportVideoOptions = {
   previewTypography?: PreviewTypographyMetrics;
   track: { title: string; artist: string };
   showFreeBadge?: boolean;
+  watermarkImage?: HTMLImageElement;
   backingUrl: string | null;
   vocalUrl: string | null;
   includeBacking: boolean;
@@ -270,6 +271,7 @@ function paintKaraokeFrame(
     previewTypography?: PreviewTypographyMetrics;
     track: { title: string; artist: string };
     showFreeBadge?: boolean;
+    watermarkImage?: HTMLImageElement;
   },
 ) {
   const scale = Math.min(width, height) / 1080;
@@ -285,9 +287,13 @@ function paintKaraokeFrame(
   if (opts.track.artist) {
     ctx.fillText(`AK / ${opts.track.artist}`.toUpperCase(), pad, Math.round(14 * scale));
   }
-  if (opts.showFreeBadge) {
-    ctx.textAlign = "right";
-    ctx.fillText("AK STUDIO", width - pad, Math.round(14 * scale));
+  if (opts.showFreeBadge && opts.watermarkImage) {
+    const logoWidth = width * .05;
+    const logoHeight = logoWidth * opts.watermarkImage.naturalHeight / opts.watermarkImage.naturalWidth;
+    ctx.save();
+    ctx.globalAlpha = .65;
+    ctx.drawImage(opts.watermarkImage, width * .975 - logoWidth, height * .025, logoWidth, logoHeight);
+    ctx.restore();
   }
 
   const lyric = activeLyricAt(opts.lyrics, opts.time, opts.projectDuration);
@@ -313,10 +319,6 @@ function paintKaraokeFrame(
   const cy = (opts.textPosition.y / 100) * height;
   const maxW = preview ? preview.maxWidthPx * previewScale : width * 0.82;
   const lines = wrapText(ctx, lyric.text, maxW);
-  const renderedTextWidth = Math.min(
-    maxW,
-    Math.max(0, ...lines.map((line) => ctx.measureText(line).width)),
-  );
   const lineGap = preview ? preview.lineHeightPx * previewScale : fontPx * (opts.lineHeight || 0.94);
   const blockH = lines.length * lineGap;
   let y = cy - blockH / 2 + lineGap / 2;
@@ -341,18 +343,6 @@ function paintKaraokeFrame(
     y += lineGap;
   }
 
-  // Progress underline under lyric block (matches stage accent bar)
-  const barY = cy + blockH / 2 + (preview ? preview.underlineGapPx * previewScale : Math.round(18 * scale));
-  const barW = preview
-    ? (renderedTextWidth + preview.lyricHorizontalPaddingPx * previewScale) * 0.56
-    : width * 0.56;
-  const barX = (width - barW) / 2;
-  ctx.fillStyle = "#2b2b2b";
-  ctx.fillRect(barX, barY, barW, Math.max(2, Math.round(2 * scale)));
-  const span = lyricSpanSec(lyric, opts.projectDuration);
-  const progress = Math.max(0, Math.min(1, (opts.time - lyric.start) / span));
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(barX, barY, barW * progress, Math.max(2, Math.round(2 * scale)));
 }
 
 function wrapText(
@@ -610,6 +600,7 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
     previewTypography: opts.previewTypography,
     track: opts.track,
     showFreeBadge: opts.showFreeBadge,
+    watermarkImage: opts.watermarkImage,
   };
 
   // Interleave audio + video in ~1s chunks so:
@@ -780,6 +771,7 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
     previewTypography: opts.previewTypography,
     track: opts.track,
     showFreeBadge: opts.showFreeBadge,
+    watermarkImage: opts.watermarkImage,
   };
 
   const start = performance.now();
@@ -884,6 +876,12 @@ function errorMessage(err: unknown): string {
 }
 
 export async function exportKaraokeVideo(opts: ExportVideoOptions): Promise<ExportVideoResult> {
+  if (opts.showFreeBadge && !opts.watermarkImage) {
+    const logo = new Image();
+    logo.src = "/logoak.svg";
+    await logo.decode();
+    opts = { ...opts, watermarkImage: logo };
+  }
   // Never let a fallback move the visible progress bar backwards. If WebCodecs
   // fails after doing meaningful work, map the recorder fallback into the
   // remaining percentage instead of restarting the UI at 0–3%.
