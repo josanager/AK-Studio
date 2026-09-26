@@ -3,7 +3,9 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import assert from 'node:assert/strict';
 const source=fs.readFileSync('lib/export-video.ts','utf8')+'\nexport {paintKaraokeFrame};';
-const context={exports:{},require:()=>({})};
+const background={exports:{}};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/studio-background.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,background);
+const context={exports:{},require:name=>name.includes('studio-background')?background.exports:{}};
 vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,context);
 const preview={stageWidth:640,stageHeight:360,fontSizePx:48,lineHeightPx:47,letterSpacingPx:-1.6,maxWidthPx:400,fontWeight:'700',fontStyle:'normal',fontFamily:'Avenir Next',title:{x:18,y:14,fontSize:11.2,fontWeight:'400',fontFamily:'Avenir Next Condensed',letterSpacing:.8,color:'#929292'},logo:{x:590,y:9,width:30,height:30,opacity:.65}};
 for(const width of [1920,2560,3840]){

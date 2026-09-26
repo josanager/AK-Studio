@@ -12,6 +12,7 @@ import {
   QUALITY_MEDIUM,
   QUALITY_VERY_HIGH,
 } from "mediabunny";
+import {paintBackground,type StudioBackground} from './studio-background';
 
 export type ExportQuality = "4K" | "2K" | "1080";
 export type ExportFps = 30 | 60;
@@ -36,6 +37,7 @@ export type PreviewTypographyMetrics = {
 };
 
 export type ExportVideoOptions = {
+  background?: StudioBackground;
   quality: ExportQuality;
   fps: ExportFps;
   aspect: ExportAspect;
@@ -274,11 +276,11 @@ function paintKaraokeFrame(
     track: { title: string; artist: string };
     showFreeBadge?: boolean;
     watermarkImage?: HTMLImageElement;
+    background?: StudioBackground;
   },
 ) {
   const scale = Math.min(width, height) / 1080;
-  ctx.fillStyle = "#090909";
-  ctx.fillRect(0, 0, width, height);
+  paintBackground(ctx,width,height,opts.time,opts.background);
 
   const preview = opts.previewTypography;
   const previewScale = preview ? width / Math.max(1, preview.stageWidth) : scale;
@@ -605,6 +607,7 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
     textStyle: opts.textStyle,
     textPosition: opts.textPosition,
     previewTypography: opts.previewTypography,
+    background: opts.background,
     track: opts.track,
     showFreeBadge: opts.showFreeBadge,
     watermarkImage: opts.watermarkImage,
@@ -784,6 +787,7 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
     textStyle: opts.textStyle,
     textPosition: opts.textPosition,
     previewTypography: opts.previewTypography,
+    background: opts.background,
     track: opts.track,
     showFreeBadge: opts.showFreeBadge,
     watermarkImage: opts.watermarkImage,

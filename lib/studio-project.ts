@@ -3,6 +3,7 @@
 export type StudioLyric = { text: string; start: number; width: number };
 
 export type StudioProjectState = {
+  background?: import('./studio-background').StudioBackground;
   url: string;
   track: { title: string; artist: string };
   lyrics: StudioLyric[];

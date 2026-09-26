@@ -1,5 +1,12 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 26 septiembre: micrófono y fondos
+
+- No se añadió importación de vídeos ni drag/drop. AudioRecorder usa MediaRecorder y el micrófono seleccionado (System default o deviceId exacto), permite detener, preescuchar, descartar y usar la toma. Permiso se solicita solo al pulsar Record audio.
+- Con canción existente, Use recording sustituye la pista de voz y conserva acompañamiento/letras; sin audio, inicia una pista local. La toma se incorpora a playback, waveform y mezcla de exportación. No se sube a R2 ni se autosalva; exportar antes de salir. Limpieza del micrófono y URLs al detener/desmontar.
+- Background: color, None/Dots/Lines/Grid y Animate pattern. Patrón determinista sincronizado con el cabezal, pausado cuando el playback está pausado; mismo painter en preview/WebCodecs/MediaRecorder. Contraste del patrón se ajusta al color. Settings permite abrir/cerrar el inspector en móvil.
+- Prueba de producción con audio sintético, sin usar micrófono físico: start/stop, preescucha, Use recording, waveform y reproducción simultánea con backing. Overrides de prueba restaurados y pestaña temporal cerrada. Revisión desktop y móvil 390×844; sin nueva exportación completa en esta ronda. TypeScript/build, test-studio-background y regresiones de escala/cancelación pasan.
+
 ## Actualización 26 septiembre: cancelar exportación
 
 - Durante la exportación, el botón Create karaoke se sustituye por Cancel export, con el estilo existente. AbortController cancela preparación/render/finalización; se comprueba de nuevo antes de descargar para impedir archivos parciales.
