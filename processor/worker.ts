@@ -10,8 +10,9 @@ type Env = { AUDIO_PROCESSOR: DurableObjectNamespace<AudioProcessor>; PROCESSOR_
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
-    if (url.pathname === "/health") return getContainer(env.AUDIO_PROCESSOR, env.SERVICE_MODE === "separator" ? "separator" : "health").fetch(new Request("http://container/health"));
+    if (url.pathname === "/health" && env.SERVICE_MODE !== "separator") return getContainer(env.AUDIO_PROCESSOR, "health").fetch(new Request("http://container/health"));
     if (!env.PROCESSOR_WEBHOOK_SECRET || request.headers.get("authorization") !== `Bearer ${env.PROCESSOR_WEBHOOK_SECRET}`) return new Response("Unauthorized", { status: 401 });
+    if (url.pathname === "/health") return getContainer(env.AUDIO_PROCESSOR, "separator").fetch(new Request("http://container/health"));
     if ((url.pathname === "/process" || url.pathname === "/download") && request.method === "POST") {
       const payload = await request.clone().json() as { jobId?:string };
       if (!payload.jobId || !/^[0-9a-f-]{36}$/i.test(payload.jobId)) return new Response("Invalid job", { status:400 });
