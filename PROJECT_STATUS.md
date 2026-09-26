@@ -543,3 +543,11 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - Playback uses an independent timeline clock and synchronizes all clips to their start offsets. Export mixes the current clips at the same offsets, honoring lane/global mute. Recording blobs remain local and are not persisted to R2 or project storage.
 - Verified real MediaRecorder flow with a synthetic microphone in an isolated browser tab: re-record, add on occupied song, new lane, pointer and keyboard movement, channel reordering, and concurrent playback. Hardware microphone was not accessed. Desktop/mobile layout inspected.
 - `npx tsc --noEmit`, `scripts/test-audio-timeline.mjs`, `scripts/test-export-sizes.mjs`, and `scripts/test-export-cancel.mjs` pass.
+# Timeline scrolling and playback recovery — 2026-09-26
+
+- Timeline toolbar remains fixed while a dedicated vertical scroll region moves all audio tracks and their headers together. Wheel/trackpad scrolling and visible scrollbar are enabled; horizontal zoom/scroll remains independent.
+- New recordings automatically reveal their channel and horizontal start position.
+- Playback avoids issuing duplicate pending `play()` requests, ignores intentional aborts, and does not repeatedly seek while a media seek is in progress. Play at the end restarts from zero.
+- Browser verified with two synthetic recordings under existing song/stems: vertical scrollTop moves 0 → 107; newly added clip fits within viewport; four audio elements advance with readyState 4, correct mute flags, and pause control works.
+- User's existing tab was still on the pre-multitrack build with a stalled seek. It was not reloaded because it contains a local recording.
+- Recovered user's 78,663-byte WebM microphone take directly between same-origin tabs using a temporary BroadcastChannel, without uploading it; inserted it into corrected editor at original start 0. Browser confirmed all three audio elements playing at readyState 4, microphone audible, then paused. Original tab retained; corrected tab kept as deliverable. Temporary recovery channel closed.

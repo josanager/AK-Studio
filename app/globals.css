@@ -1218,3 +1218,7 @@ html:has(.ak-shell) body{
 .track-heads .audio-lane-head>span{display:block}
 @media(max-width:600px){.timeline-body{grid-template-columns:100px minmax(0,1fr)}.audio-lane-head>svg{display:none}.audio-lane-head>span{font-size:9px}}
 @media(max-width:600px){.track-heads .audio-lane-head{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:22px 26px;gap:2px;align-content:center}.track-heads .audio-lane-head>span{display:block;grid-column:1/-1;text-align:center}.track-heads .audio-lane-head>svg{display:none}.audio-lane-head button{justify-content:center}}
+.timeline-shell{display:grid;grid-template-rows:42px minmax(0,1fr);overflow:hidden}
+.timeline-vertical-scroll{min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-width:auto;scrollbar-color:#777 #eee;scrollbar-gutter:stable}
+.timeline-vertical-scroll .timeline-scroll{touch-action:pan-x pan-y}
+.timeline-vertical-scroll:focus-visible{outline:2px solid #111;outline-offset:-2px}
