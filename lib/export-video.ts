@@ -284,8 +284,8 @@ function paintKaraokeFrame(
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   const pad = Math.round(18 * scale);
-  if (opts.track.artist) {
-    ctx.fillText(`AK / ${opts.track.artist}`.toUpperCase(), pad, Math.round(14 * scale));
+  if (opts.track.title) {
+    ctx.fillText(opts.track.title.toUpperCase(), pad, Math.round(14 * scale));
   }
   if (opts.showFreeBadge && opts.watermarkImage) {
     const logoWidth = width * .05;
