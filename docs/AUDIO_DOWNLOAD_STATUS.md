@@ -11,4 +11,14 @@ Implemented:
 
 Verification: `node scripts/test-download-http.mjs`, `npx tsc --noEmit`, Python compilation, production build.
 
-Still required: provision a permanent processor runtime, deploy `processor/server.py`, configure `GPU_PROCESSOR_URL` and the matching authentication secret, then verify a real authenticated download through the editor. Local Docker is absent and the current Wrangler OAuth token cannot access Workers Builds (403), so remote container provisioning remains outstanding. These code changes do not restore the unavailable origin and do not guarantee uninterrupted downloads.
+## Permanent deployment completed
+
+Cloudflare Workers Paid is active. The dedicated Worker `ak-studio-audio-processor` is deployed at `https://ak-studio-audio-processor.josanager.workers.dev`, backed by Cloudflare Containers. Workers Builds uses the existing GitHub connection, repository `josanager/AK-Studio`, root `/processor`, and deploy command `npx wrangler deploy`. Existing build-token access worked; no new API token was created. The image is built remotely, so local Docker is unnecessary.
+
+`Dockerfile.download` installs yt-dlp, ffmpeg, and Deno only. Maximum instances: 3, basic instance size, idle sleep: 2 minutes. This image does NOT install the optional vocal separator. The original Dockerfile remains available for a separately provisioned separation runtime; do not claim that separation works on this download-only deployment.
+
+Matching `PROCESSOR_WEBHOOK_SECRET` values were configured in both Workers, and `GPU_PROCESSOR_URL` now points to the permanent processor. Secrets are stored in Cloudflare, never in Git. Main Worker includes `global_fetch_strictly_public` to permit calls to the processor Worker; without it Cloudflare returned error 1042.
+
+Import calls `/download` directly (separation remains an explicit, separate action). NDJSON sends blank keepalive lines every 15 seconds during preparation; callbacks tolerate stream cancellation, though this does not guarantee a job survives a browser disconnect.
+
+Verified through the authenticated production editor: YouTube Music video `Om-nOVJhfqA` (Get Happy / Happy Days Are Here Again) reached `Ready · full-mix · LRCLIB`; waveform and Play became available. Playback confirmed `paused: false`, `readyState: 4`, duration 135.267688 seconds, and advancing playback time. Processor `/health` also returned HTTP 200. No local processor or temporary tunnel is involved. YouTube availability, external restrictions, and transient infrastructure failures still mean downloads cannot be guaranteed for every link.
