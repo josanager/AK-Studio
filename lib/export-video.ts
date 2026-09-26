@@ -583,6 +583,10 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
     output.addAudioTrack(audioSource);
   }
 
+  const cancelOutput = () => { void output.cancel().catch(() => undefined) };
+  opts.signal?.addEventListener("abort", cancelOutput, {once:true});
+  try {
+  throwIfAborted(opts.signal);
   await withTimeout(
     output.start(),
     20_000,
@@ -689,6 +693,14 @@ async function exportWithWebCodecs(opts: ExportVideoOptions): Promise<ExportVide
     height,
     fps,
   };
+  } finally {
+    opts.signal?.removeEventListener("abort", cancelOutput);
+    if (opts.signal?.aborted) {
+      await output.cancel().catch(() => undefined);
+      try {videoSource.close()} catch {/* already closed */}
+      try {audioSource?.close()} catch {/* already closed */}
+    }
+  }
 }
 
 function pickRecorderMime(): { mimeType: string; ext: string } {
@@ -778,6 +790,7 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
   };
 
   const start = performance.now();
+  try {
   await new Promise<void>((resolve, reject) => {
     let settled = false;
     const finish = (err?: Error) => {
@@ -813,6 +826,14 @@ async function exportWithMediaRecorder(opts: ExportVideoOptions): Promise<Export
     };
     tick();
   });
+  } finally {
+    if(opts.signal?.aborted){
+      try {if(recorder.state!=="inactive")recorder.stop()} catch {/* stopped */}
+      try {sourceNode?.stop()} catch {/* stopped */}
+      for(const track of stream.getTracks())track.stop();
+      await audioCtx.close().catch(()=>undefined);
+    }
+  }
 
   await new Promise((r) => setTimeout(r, 160));
   try {
@@ -905,6 +926,7 @@ export async function exportKaraokeVideo(opts: ExportVideoOptions): Promise<Expo
     try {
       return await exportWithWebCodecs(primaryOpts);
     } catch (err) {
+      throwIfAborted(opts.signal);
       if (err instanceof DOMException && err.name === "AbortError") throw err;
       webCodecsError = err;
     }

@@ -2,7 +2,7 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {AlignCenter,AlignLeft,AlignRight,Captions,Check,ChevronDown,CircleUserRound,Download,FolderOpen,Gauge,HelpCircle,Link2,LoaderCircle,Maximize2,Magnet,Mic2,Minus,Music,Pause,Play,Plus,Scissors,Trash2,Undo2,Volume2,VolumeX,WandSparkles,ZoomIn,ZoomOut} from "lucide-react";
+import {AlignCenter,AlignLeft,AlignRight,Captions,Check,ChevronDown,CircleUserRound,Download,FolderOpen,Gauge,HelpCircle,Link2,LoaderCircle,Maximize2,Magnet,Mic2,Minus,Music,Pause,Play,Plus,Scissors,Trash2,Undo2,Volume2,VolumeX,WandSparkles,ZoomIn,ZoomOut,X} from "lucide-react";
 import {measurePreview} from "../lib/preview-metrics";
 import {editLyricTiming,type TimingAction} from "../lib/lyric-timing";
 import type {PlanSnapshot} from "../lib/plans";
@@ -28,6 +28,9 @@ function sanitizeClientError(message:string){
 export default function Studio({user,plan}:{user:{name:string,email:string};plan:PlanSnapshot}){
  const[url,setUrl]=useState("");const[processing,setProcessing]=useState(false);const[analyzed,setAnalyzed]=useState(false);const[notice,setNotice]=useState<{kind:"success"|"error",text:string}|null>(null);const[track,setTrack]=useState<Track>({title:"",artist:""});const[duration,setDuration]=useState(240);const[audioSrc,setAudioSrc]=useState<string|null>(null);const[backingSrc,setBackingSrc]=useState<string|null>(null);const[vocalSrc,setVocalSrc]=useState<string|null>(null);const[bpm,setBpm]=useState<number|null>(null);const[model,setModel]=useState<string|null>(null);const[lyrics,setLyrics]=useState<Lyric[]>([]);const[selected,setSelected]=useState(-1);const[playing,setPlaying]=useState(false);const[position,setPosition]=useState(0);const[muted,setMuted]=useState(false);const[stemMuted,setStemMuted]=useState({backing:false,vocal:true});const[font,setFont]=useState("Avenir Next");const[fontSize,setFontSize]=useState(72);const[lineHeight,setLineHeight]=useState(.94);const[zoom,setZoom]=useState(62);const[aspect,setAspect]=useState<"16:9"|"9:16"|"1:1">("16:9");const[exportQuality,setExportQuality]=useState<ExportQuality>("1080");const[exportFps,setExportFps]=useState<ExportFps>(30);const[qualityOpen,setQualityOpen]=useState(false);const[exporting,setExporting]=useState(false);const[textStyle,setTextStyle]=useState({bold:true,italic:false,underline:false,align:"center" as "left"|"center"|"right",color:"#fff"});const[textPosition,setTextPosition]=useState({x:50,y:50});const[snap,setSnap]=useState({x:false,y:false});const stageRef=useRef<HTMLDivElement>(null);const timelineRef=useRef<HTMLDivElement>(null);const metronomeRef=useRef<AudioContext|null>(null);const mediaRef=useRef<HTMLAudioElement>(null);const vocalRef=useRef<HTMLAudioElement>(null);const scrubbingRef=useRef<{pointerId:number;surface:HTMLElement;target:HTMLElement}|null>(null);const endScrubRef=useRef<(()=>void)|null>(null);const positionRef=useRef(0);const togglePlaybackRef=useRef<()=>void>(()=>{});
  const[backingPeaks,setBackingPeaks]=useState<number[]|null>(null);const[vocalPeaks,setVocalPeaks]=useState<number[]|null>(null);const[audioDuration,setAudioDuration]=useState(0);const[downloadProgress,setDownloadProgress]=useState<number|null>(null);
+ const exportAbortRef=useRef<AbortController|null>(null);
+ useEffect(()=>()=>exportAbortRef.current?.abort(),[]);
+ function cancelExport(){exportAbortRef.current?.abort();setProgressLabel("Cancelling export…")}
  const[progressLabel,setProgressLabel]=useState<string|null>(null);
  const[separating,setSeparating]=useState(false);
  const[exportOpen,setExportOpen]=useState(false);
@@ -265,9 +268,11 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
   if(!backingSrc&&!audioSrc){setNotice({kind:"error",text:"No audio to export yet. Create karaoke first."});return}
   if(!canExportVideoRoughly()){setNotice({kind:"error",text:"Video export needs a modern browser with WebCodecs or MediaRecorder."});return}
   if(playing){mediaRef.current?.pause();vocalRef.current?.pause();setPlaying(false)}
+  const controller=new AbortController();exportAbortRef.current=controller;
   setExporting(true);setNotice(null);setDownloadProgress(1);setProgressLabel("Exporting video… 1%");
   try{
     await document.fonts?.ready;
+    controller.signal.throwIfAborted();
     const stage=stageRef.current;
     const previewTypography=stage?measurePreview(stage,{font,fontSize,lineHeight,bold:textStyle.bold,italic:textStyle.italic}):undefined;
     const includeBacking=!(muted||stemMuted.backing);
@@ -275,6 +280,7 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
     // If both stems muted, still export backing (or full mix) so the file isn’t silent-by-accident
     const forceBacking=!includeBacking&&!includeVocal;
     const result=await exportKaraokeVideo({
+      signal:controller.signal,
       quality:exportQuality,
       fps:exportFps,
       aspect,
@@ -295,6 +301,7 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
       includeVocal:includeVocal&&!forceBacking,
       onProgress:(n)=>{setDownloadProgress(n);setProgressLabel(`Exporting video… ${n}%`)},
     });
+    controller.signal.throwIfAborted();
     const savedName=downloadBlob(result.blob, result.filename);
     setDownloadProgress(100);setProgressLabel("Exporting video… 100%");
     window.setTimeout(()=>{setDownloadProgress(null);setProgressLabel(null)},700);
@@ -302,10 +309,9 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
     const specs=`${result.width}×${result.height} · ${result.fps}fps`;
     setNotice({kind:"success",text:kind===".mp4"?`Exported ${savedName} · ${specs}`:kind===".webm"?`Exported ${savedName} · ${specs} (WebM fallback)`:`Exported ${savedName} · ${specs}`});
   }catch(error){
-    setNotice({kind:"error",text:error instanceof Error?error.message:"Could not export video."});
+    if(controller.signal.aborted){setNotice({kind:"success",text:"Export cancelled."});setDownloadProgress(null)}else{setNotice({kind:"error",text:error instanceof Error?error.message:"Could not export video."});window.setTimeout(()=>setDownloadProgress(null),2500)}
     setProgressLabel(null);
-    window.setTimeout(()=>setDownloadProgress(null),2500);
-  }finally{setExporting(false)}
+  }finally{exportAbortRef.current=null;setExporting(false)}
  }
 async function deleteSavedProject(id:string,title:string){const prev=savedProjects;setSavedProjects(list=>list.filter(p=>p.id!==id));try{const r=await fetch(`/api/projects/${id}`,{method:"DELETE"});if(r.status===401){setSavedProjects(prev);setNotice({kind:"error",text:"Sign in to delete a project."});return}if(!r.ok){const err=await r.json().catch(()=>({})) as{error?:string};setSavedProjects(prev);setNotice({kind:"error",text:err.error||"Could not delete project."});return}if(projectId===id){skipSaveRef.current=true;if(saveTimerRef.current){window.clearTimeout(saveTimerRef.current);saveTimerRef.current=null}setProjectId(null);setUrl("");setTrack({title:"",artist:""});setLyrics([]);setDuration(240);setAudioDuration(0);setAnalyzed(false);setSelected(-1);setPosition(0);setBpm(null);setModel(null);setAudioId(null);setAudioApiUrl(null);setBackingApiUrl(null);setVocalApiUrl(null);revokeAudioUrl(audioSrc);revokeAudioUrl(backingSrc);revokeAudioUrl(vocalSrc);setAudioSrc(null);setBackingSrc(null);setVocalSrc(null);setBackingPeaks(null);setVocalPeaks(null);setPlaying(false);setSaveNote(null);setNotice({kind:"success",text:`Deleted “${title}”. Create karaoke to autosave again.`});window.setTimeout(()=>{skipSaveRef.current=false},600)}await refreshSavedProjects()}catch{setSavedProjects(prev);setNotice({kind:"error",text:"Could not delete project."})}
  }
@@ -333,7 +339,7 @@ async function deleteSavedProject(id:string,title:string){const prev=savedProjec
         : notice ? <>{notice.kind==="success"?<Check/>:<HelpCircle/>}{notice.text}</>
         : null}
     </span>
-    {plan.canCreate
+    {exporting ? <button type="button" aria-label="Cancel export" title="Cancel export" onClick={cancelExport}><X/><span>Cancel export</span></button> : plan.canCreate
       ? <button type="submit" aria-label={processing?"Preparing karaoke":"Create karaoke"} title={processing?"Preparing":"Create karaoke"} disabled={processing||separating||exporting||!isYouTubeLink(url)}>{processing?<LoaderCircle className="spin"/>:<WandSparkles/>}<span className="btn-label">{processing?"Preparing":"Create karaoke"}</span></button>
       : <Link className="limit-link" href="/account">Weekly limit reached · Upgrade</Link>}
   </div>

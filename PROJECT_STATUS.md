@@ -1,5 +1,12 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 26 septiembre: cancelar exportación
+
+- Durante la exportación, el botón Create karaoke se sustituye por Cancel export, con el estilo existente. AbortController cancela preparación/render/finalización; se comprueba de nuevo antes de descargar para impedir archivos parciales.
+- Abort cancela y libera Output/codificadores WebCodecs; en MediaRecorder detiene grabación, audio y tracks. No se activa un fallback después de cancelar. Al desmontar también se aborta.
+- Exportación del usuario detenida inmediatamente por recarga al 65% (antes de disponer del botón). Después, prueba real 4K/60 fps cancelada al 21% usando el nuevo botón: mensaje Export cancelled, entrada desbloqueada y sin descarga. Se conservaron la calidad y la configuración del proyecto.
+- TypeScript, build, test-export-cancel y regresión test-export-sizes pasan.
+
 ## Actualización 26 septiembre: escala del canvas al exportar
 
 - Eliminado el fallback de tamaño pequeño cuando el cabezal está entre letras: `lib/preview-metrics.ts` mide la tipografía CSS con una sonda invisible temporal si no hay texto activo; la sonda se elimina inmediatamente.
