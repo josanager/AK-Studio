@@ -7,7 +7,8 @@ const generated = JSON.parse(await readFile(generatedPath, "utf8"));
 const config = {
   ...generated,
   name: "ak-studio",
-  workers_dev: true,
+  workers_dev: false,
+  preview_urls: false,
   routes: [
     {pattern:"akstudiovocal.com",custom_domain:true},
     {pattern:"www.akstudiovocal.com",custom_domain:true},
@@ -15,8 +16,8 @@ const config = {
   vars: {
     ...(generated.vars ?? {}),
     COMPLIMENTARY_PRO_EMAIL: "josanager@gmail.com",
-    BETTER_AUTH_URL: "https://ak-studio.josanager.workers.dev",
-    SITE_URL: "https://ak-studio.josanager.workers.dev",
+    BETTER_AUTH_URL: "https://akstudiovocal.com",
+    SITE_URL: "https://akstudiovocal.com",
   },
   compatibility_date: "2026-09-20",
   compatibility_flags: Array.from(new Set([...(generated.compatibility_flags ?? []), "nodejs_compat", "global_fetch_strictly_public"])),

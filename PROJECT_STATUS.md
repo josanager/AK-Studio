@@ -594,3 +594,11 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 # Profile menu navigation — 2026-09-27
 
 - The menu's Profile, Plans, and Font collections links now use native same-origin navigation. Production's client-side `next/link` handler was throwing a runtime error when clicked, even though `/account/plans` itself rendered correctly.
+
+# Official domain and branded authentication errors — 2026-09-27
+
+- `https://akstudiovocal.com` is now the only application origin. `www` permanently redirects to the apex domain, preserving path and query; application workers.dev and preview URLs are disabled. Build preparation preserves these settings. The separate internal audio processor is unchanged.
+- Better Auth base URL, trusted origin, Google callback and JavaScript origin, Google authorized branding domain/homepage, Stripe checkout returns and the existing Stripe webhook destination use the official domain. Existing database, user accounts and webhook signing secret remain unchanged. Stripe is still in test mode; this change does not enable live billing.
+- Added `/signin/error` with safe English messages, Try again and Back to home. OAuth errors no longer display Better Auth's default external documentation/Ask AI interface. Google sign-in prevents duplicate clicks and sends failures to the local screen; OAuth state verification remains enabled.
+- Production build and TypeScript passed; deployed version `800fe50c-1dac-436e-8919-fa4234326e0c`. Verified official site HTTP 200, www HTTP 308, old app origin HTTP 404, auth error HTTP 302 to the local screen, and webhook HTTP 400 for a missing signature (expected).
+- Browser completed Google sign-in with the second account `josan862003@gmail.com` and returned to the official `/studio` editor. Verified the custom error screen and its retry link. Google console still labels the OAuth app as testing with incomplete publication details; successful basic email/profile/openid login was verified, but public branding/publication is not completed in this change.

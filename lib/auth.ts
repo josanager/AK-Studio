@@ -6,6 +6,8 @@ import * as schema from "../db/schema";
 
 export const auth = betterAuth({
   appName:"AK Studio", baseURL:env.BETTER_AUTH_URL, secret:env.BETTER_AUTH_SECRET,
+  trustedOrigins:["https://akstudiovocal.com"],
+  onAPIError:{errorURL:"https://akstudiovocal.com/signin/error"},
   database:drizzleAdapter(getDb(),{provider:"sqlite",schema:{user:schema.authUser,session:schema.authSession,account:schema.authAccount,verification:schema.authVerification}}),
   ...(env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET?{socialProviders:{google:{clientId:env.GOOGLE_CLIENT_ID,clientSecret:env.GOOGLE_CLIENT_SECRET}}}:{}),
 });

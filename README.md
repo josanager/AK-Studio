@@ -4,7 +4,7 @@
 
 Web app en evolución: pegas un enlace, obtienes metadatos y letras sincronizables, y editas tipografía y timeline. Orientada a crear karaoke con el menor fricción posible — honestamente, aún no es un producto de exportación completa en producción.
 
-**Demo en vivo:** [https://ak-studio.josanager.workers.dev](https://ak-studio.josanager.workers.dev)
+**Sitio oficial:** [https://akstudiovocal.com](https://akstudiovocal.com)
 
 ---
 

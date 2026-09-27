@@ -1250,6 +1250,10 @@ html:has(.ak-shell) body{
 .profile-popover-link svg,.profile-popover-signout svg{width:16px;height:16px}
 .profile-popover-divider{height:1px;background:#d8d8d3}
 .profile-popover-signout{width:100%;margin-top:5px}
+.signin-error-content{max-width:440px}
+.signin-error-content p{line-height:1.5}
+.signin-retry{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;background:#111;color:#fff;text-decoration:none;border-radius:6px;font-weight:650;margin-top:24px}
+.signin-home{display:inline-flex;align-items:center;gap:7px;min-height:44px;margin-top:12px;text-decoration:none;color:#111}
 .account-section-nav{display:flex;gap:20px;align-items:center;border-bottom:1px solid #bdbdb7;margin:-2px 0 22px;overflow-x:auto}
 .account-section-nav a{min-height:42px;display:flex;align-items:center;padding:0 2px;color:#666;text-decoration:none;font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
 .account-section-nav a:hover,.account-section-nav a.active{color:#111}
