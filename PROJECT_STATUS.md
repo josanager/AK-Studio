@@ -590,3 +590,7 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - Removed inherited vertical padding from the source-bar content grid so the YouTube link field, status, icon, and Create karaoke button center together in the desktop row. Mobile-specific spacing remains unchanged.
 - Production build passed with the bundled Node.js runtime.
 - Removed the source row's lower divider so it no longer draws a line beneath the controls.
+
+# Profile menu navigation — 2026-09-27
+
+- The menu's Profile, Plans, and Font collections links now use native same-origin navigation. Production's client-side `next/link` handler was throwing a runtime error when clicked, even though `/account/plans` itself rendered correctly.
