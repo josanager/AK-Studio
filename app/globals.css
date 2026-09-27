@@ -939,12 +939,14 @@ html:has(.ak-shell) body{
 .source-bar{
   min-height:52px;
   padding:8px 16px;
+  border-bottom:0;
 }
 .source-bar-content{
   min-height:35px;
   grid-template-columns:20px minmax(180px,1fr) minmax(0,auto) auto;
   column-gap:12px;
   padding:0;
+  border-bottom:0;
 }
 .source-bar-content input{
   min-height:35px;
