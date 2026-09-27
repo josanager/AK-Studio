@@ -568,3 +568,8 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - Audio clips are selectable. Split cuts the selected clip at playhead; Delete targets the selected audio. Edge handles trim either end, with beat snap or free movement and keyboard arrows.
 - Non-destructive source offsets are honored by playback and export mixing; waveform reflects the retained source range. Original files are unchanged.
 - TypeScript and focused split/trim/export-offset tests passed. Browser verified selection, split into two fragments, and start/end trimming. Isolated test tab closed; user's recording tabs were not reloaded. No song download or stem separation. Uncodixfy preserved toolbar styling.
+
+# Timeline undo and redo — 2026-09-27
+
+- Added Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z and Ctrl+Y, plus toolbar Undo/Redo icons. History tracks lyrics, audio clips and lanes, typography, canvas positioning/background/aspect ratio, watermark, and duration; capped at 100 snapshots. Text entry is not intercepted while an input/contenteditable has focus.
+- Toolbar action labels are icon-only; accessible names and hover titles remain. Deployed to the AK Studio Worker and custom domains.
