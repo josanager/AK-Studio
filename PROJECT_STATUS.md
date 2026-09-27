@@ -602,3 +602,10 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - Added `/signin/error` with safe English messages, Try again and Back to home. OAuth errors no longer display Better Auth's default external documentation/Ask AI interface. Google sign-in prevents duplicate clicks and sends failures to the local screen; OAuth state verification remains enabled.
 - Production build and TypeScript passed; deployed version `800fe50c-1dac-436e-8919-fa4234326e0c`. Verified official site HTTP 200, www HTTP 308, old app origin HTTP 404, auth error HTTP 302 to the local screen, and webhook HTTP 400 for a missing signature (expected).
 - Browser completed Google sign-in with the second account `josan862003@gmail.com` and returned to the official `/studio` editor. Verified the custom error screen and its retry link. Google console still labels the OAuth app as testing with incomplete publication details; successful basic email/profile/openid login was verified, but public branding/publication is not completed in this change.
+
+# Site-wide navigation reliability — 2026-09-27
+
+- Replaced every remaining application `next/link` with native anchors to avoid the production client-router failure: account Studio return, settings tabs, sign-in branding, landing branding, editor branding, and weekly-limit upgrade (now targets `/account/plans`). Existing design unchanged per Uncodixfy.
+- Replaced the nonfunctional mock preview button on the landing page with a real editor/sign-in link, preserving its appearance.
+- TypeScript and production build passed. Deployed version `f94ffb8c-b9c0-44d0-bacc-93e6ab9efdde`. Browser verified Plans → Studio, editor menu → Profile, settings → Fonts → Plans, plus lyric creation/deletion, undo/redo, aspect ratio, zoom, typeface, alignment, and export menu; no console errors in the isolated editor test. Signed-in home redirects to Studio as designed.
+- Controls that require an audio clip remain intentionally disabled without audio; Active is a subscription status, not an action. This navigation pass did not re-download/separate audio, charge a card, record the microphone, or re-test full export.

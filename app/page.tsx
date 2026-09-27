@@ -1,5 +1,4 @@
 import {redirect} from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 import {ArrowRight, Check, Gauge, Link2, Mic2, Type, WandSparkles} from "lucide-react";
 import {LandingReveal} from "../components/landing-reveal";
@@ -37,10 +36,10 @@ export default async function Home() {
       />
 
       <nav className="landing-nav" aria-label="Main navigation">
-        <Link className="landing-wordmark" href="/" aria-label="AK Studio home">
+        <a className="landing-wordmark" href="/" aria-label="AK Studio home">
           <span><Image src="/logoak.svg" alt="" width={1080} height={1080} /></span>
           <b>Studio</b>
-        </Link>
+        </a>
         <div className="landing-nav-links">
           <a href="#product">Product</a>
           <a href="#type">Type</a>
@@ -98,9 +97,9 @@ export default async function Home() {
             <b>
               118 <small>BPM</small>
             </b>
-            <button type="button" aria-label="Play preview">
+            <a href={actionHref} aria-label="Open karaoke editor">
               <PlayIcon />
-            </button>
+            </a>
           </div>
 
           <div className="mock-source">
@@ -406,10 +405,10 @@ export default async function Home() {
       </LandingReveal>
 
       <footer className="landing-footer">
-        <Link className="landing-wordmark" href="/" aria-label="AK Studio home">
+        <a className="landing-wordmark" href="/" aria-label="AK Studio home">
           <span><Image src="/logoak.svg" alt="" width={1080} height={1080} /></span>
           <b>Studio</b>
-        </Link>
+        </a>
         <p>Music in. Karaoke out.</p>
         <span>© 2026 AK Studio</span>
       </footer>
