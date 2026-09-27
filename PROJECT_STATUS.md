@@ -584,3 +584,8 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - The editor profile button opens a compact account popover with Profile, Plans, Font collections, and Sign out; closes on outside click or Escape.
 - `/account` now shows basic identity only. Subscription and checkout live at `/account/plans`; saved typography collections remain at `/account/fonts`.
 - Confirmed the production profile, plans, and fonts routes render under the signed-in session. Deployment completed to the Worker and custom domains.
+
+# Source bar vertical alignment — 2026-09-27
+
+- Removed inherited vertical padding from the source-bar content grid so the YouTube link field, status, icon, and Create karaoke button center together in the desktop row. Mobile-specific spacing remains unchanged.
+- Production build passed with the bundled Node.js runtime.
