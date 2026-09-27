@@ -1233,3 +1233,29 @@ html:has(.ak-shell) body{
 .ak-wordmark>span img,.landing-wordmark>span img,.signin-brand>span img,.account-mark img,.stage-watermark-logo,.watermark-toggle-icon{mix-blend-mode:difference;filter:none}
 .ak-topbar .ak-wordmark img{filter:none;mix-blend-mode:difference}
 .landing-footer .landing-wordmark span{border:0}
+
+.profile-menu{position:relative;display:flex;align-items:center}
+.profile-menu-trigger{width:auto;height:36px;padding:0 8px;gap:7px;cursor:pointer}
+.profile-menu-chevron{width:13px;height:13px}
+.profile-popover{position:absolute;z-index:80;right:0;top:calc(100% + 8px);width:min(260px,calc(100vw - 24px));padding:8px;background:#fff;color:#111;border:1px solid #bdbdb7;box-shadow:0 3px 10px #0002}
+.profile-popover-identity{display:grid;gap:3px;padding:10px 10px 12px;border-bottom:1px solid #d8d8d3;overflow:hidden}
+.profile-popover-identity strong{font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-popover-identity span{font-size:11px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-popover nav{display:grid;padding:5px 0}
+.profile-popover-link,.profile-popover-signout{min-height:40px;padding:0 10px;display:flex;align-items:center;gap:9px;text-decoration:none;background:transparent;border:0;text-align:left;font-size:12px;cursor:pointer}
+.profile-popover-link:hover,.profile-popover-signout:hover{background:#f0f0ed}
+.profile-popover-link svg,.profile-popover-signout svg{width:16px;height:16px}
+.profile-popover-divider{height:1px;background:#d8d8d3}
+.profile-popover-signout{width:100%;margin-top:5px}
+.account-section-nav{display:flex;gap:20px;align-items:center;border-bottom:1px solid #bdbdb7;margin:-2px 0 22px;overflow-x:auto}
+.account-section-nav a{min-height:42px;display:flex;align-items:center;padding:0 2px;color:#666;text-decoration:none;font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+.account-section-nav a:hover,.account-section-nav a.active{color:#111}
+.account-section-nav a.active{border-bottom-color:#111;font-weight:650}
+.profile-details{min-height:0!important;background:#fff;border:1px solid #bdbdb7;padding:20px 24px}
+.profile-details h2{font-size:14px;margin:0;padding-bottom:14px;border-bottom:1px solid #d8d8d3}
+.profile-details dl{margin:0}
+.profile-details dl>div{display:grid;grid-template-columns:minmax(90px,160px) minmax(0,1fr);gap:12px;padding:15px 0;border-bottom:1px solid #e2e2de;font-size:12px}
+.profile-details dl>div:last-child{border-bottom:0}
+.profile-details dt{color:#666}
+.profile-details dd{margin:0;overflow-wrap:anywhere}
+@media(max-width:720px){.profile-menu-trigger{width:44px;height:44px;padding:0;justify-content:center}.profile-menu-trigger>span,.profile-menu-chevron{display:none}.account-section-nav{gap:16px}.profile-details{padding:16px}.profile-details dl>div{grid-template-columns:82px minmax(0,1fr)}}

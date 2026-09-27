@@ -578,3 +578,9 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
 - Removed the favicon's embedded dark square, gave the transparent favicon a light/dark system appearance, and versioned its URL to refresh browser caches.
 - Logo image use throughout the UI blends to its backdrop so the white mark appears dark on light backgrounds and light on dark ones. Removed solid logo-container fills, including the account page mark.
+
+# Account menu and separated settings — 2026-09-27
+
+- The editor profile button opens a compact account popover with Profile, Plans, Font collections, and Sign out; closes on outside click or Escape.
+- `/account` now shows basic identity only. Subscription and checkout live at `/account/plans`; saved typography collections remain at `/account/fonts`.
+- Confirmed the production profile, plans, and fonts routes render under the signed-in session. Deployment completed to the Worker and custom domains.
