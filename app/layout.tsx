@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: "AK Studio — Karaoke in sync",
   description: "Turn a song into an editable, synchronized karaoke video.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/favicon.svg?v=2",
+    shortcut: "/favicon.svg?v=2",
   },
 };
 
