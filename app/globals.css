@@ -1227,3 +1227,9 @@ html:has(.ak-shell) body{
 .audio-clip>.audio-trim-handle.start{left:0}.audio-clip>.audio-trim-handle.end{left:auto;right:0}
 .audio-clip.selected>.audio-trim-handle{background:#1113}
 .audio-clip>button{right:10px}
+
+/* Keep the AK mark transparent and let difference blending invert it against its backdrop. */
+.ak-wordmark>span,.landing-wordmark>span,.signin-brand>span,.account-mark{background:transparent;border:0;color:inherit}
+.ak-wordmark>span img,.landing-wordmark>span img,.signin-brand>span img,.account-mark img,.stage-watermark-logo,.watermark-toggle-icon{mix-blend-mode:difference;filter:none}
+.ak-topbar .ak-wordmark img{filter:none;mix-blend-mode:difference}
+.landing-footer .landing-wordmark span{border:0}

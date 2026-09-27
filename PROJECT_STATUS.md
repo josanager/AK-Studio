@@ -573,3 +573,8 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 
 - Added Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z and Ctrl+Y, plus toolbar Undo/Redo icons. History tracks lyrics, audio clips and lanes, typography, canvas positioning/background/aspect ratio, watermark, and duration; capped at 100 snapshots. Text entry is not intercepted while an input/contenteditable has focus.
 - Toolbar action labels are icon-only; accessible names and hover titles remain. Deployed to the AK Studio Worker and custom domains.
+
+# Transparent adaptive AK logo — 2026-09-27
+
+- Removed the favicon's embedded dark square and gave the transparent favicon a light/dark system appearance.
+- Logo image use throughout the UI blends to its backdrop so the white mark appears dark on light backgrounds and light on dark ones. Removed solid logo-container fills, including the account page mark.
