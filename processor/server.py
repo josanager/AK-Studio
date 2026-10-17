@@ -21,6 +21,64 @@ ACTIVE_JOBS = {}
 ACTIVE_LOCK = threading.Lock()
 
 
+def update_job_progress(job_id, value, message):
+    with ACTIVE_LOCK:
+        job = ACTIVE_JOBS.get(job_id)
+        if job and job.get("status") == "processing":
+            job.update(progress=max(job.get("progress", 5), min(88, value)),
+                       message=message, updatedAt=time.time())
+
+
+def run_separation(command, timeout, job_id):
+    """Stream real audio-separator progress from both stdout and stderr."""
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               start_new_session=True, bufsize=0)
+    output = []
+
+    def read_output():
+        pending = b""
+        while True:
+            chunk = os.read(process.stdout.fileno(), 4096)
+            if not chunk:
+                break
+            pending += chunk
+            lines = re.split(b"[\r\n]", pending)
+            pending = lines.pop()
+            for line in lines:
+                text = line.decode("utf-8", "replace")
+                output.append(text)
+                del output[:-30]
+                match = re.search(rb"(?:^|\s)(\d{1,3})%\|", line)
+                if match:
+                    percent = min(100, int(match.group(1)))
+                    update_job_progress(job_id, 20 + round(percent * 0.65),
+                                        "Separating lead vocal…")
+
+    reader = threading.Thread(target=read_output, daemon=True)
+    reader.start()
+    deadline = time.monotonic() + timeout
+    try:
+        while process.poll() is None:
+            if time.monotonic() > deadline:
+                raise RuntimeError("Vocal separation timed out. Try a shorter song.")
+            time.sleep(0.2)
+        reader.join(timeout=2)
+        if process.returncode:
+            message = next((line for line in reversed(output) if line.strip()),
+                           "Vocal separation failed.")
+            raise RuntimeError(message[:500])
+    finally:
+        if process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=10)
+        process.stdout.close()
+
+
+
+
 def cleanup_jobs():
     JOBS_ROOT.mkdir(parents=True, exist_ok=True)
     cutoff = time.time() - TTL_SECONDS
@@ -198,7 +256,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.respond_json(202, {"status": existing["status"], "jobId": job_id})
                 if any(job["status"] == "processing" for job in ACTIVE_JOBS.values()):
                     return self.respond_error(429, "The separator is busy. Try again shortly.")
-                ACTIVE_JOBS[job_id] = {"status": "processing", "startedAt": time.time()}
+                ACTIVE_JOBS[job_id] = {"status": "processing", "startedAt": time.time(), "progress": 8, "message": "Preparing stored audio…"}
             def work():
                 try:
                     manifest = self.perform_job(payload, False)
@@ -253,6 +311,7 @@ class Handler(BaseHTTPRequestHandler):
             info = {}
 
             if has_audio and not download_only:
+                update_job_progress(job_id, 10, "Loading stored audio…")
                 source = download_audio_url(audio_url, job_dir / "source")
             else:
                 run_download([
@@ -290,7 +349,9 @@ class Handler(BaseHTTPRequestHandler):
             separated = job_dir / "separated"
             separated.mkdir(exist_ok=True)
             names = json.dumps({"Vocals": "lead", "Instrumental": "backing", "Lead Vocals": "lead", "Backing Vocals": "backing"})
-            run(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models", "--custom_output_names", names, "--mdxc_overlap", "2", "--mdxc_batch_size", "1"], 1800)
+            update_job_progress(job_id, 20, "Loading vocal separation model…")
+            run_separation(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models", "--custom_output_names", names, "--mdxc_overlap", "2", "--mdxc_batch_size", "1"], 1800, job_id)
+            update_job_progress(job_id, 88, "Preparing separated tracks…")
             lead, backing = find_stems(separated)
             shutil.move(source, job_dir / "original.flac")
             shutil.move(lead, job_dir / "lead.flac")

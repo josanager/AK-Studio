@@ -223,19 +223,21 @@ export async function processWithGpu({
     const deadline = Date.now() + 32 * 60_000;
     while (true) {
       if (Date.now() > deadline) throw new Error("Vocal separation timed out. Please try a shorter song.");
-      await new Promise((resolve) => setTimeout(resolve, 10_000));
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
       const statusResponse = await fetchSeparator(`${processorBase}/job/${processorJobId}`, {
         headers: { authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}` },
       });
       if (!statusResponse.ok) throw new Error("The separation job could not be reached. Please try again.");
-      const status = await statusResponse.json() as { status: string; manifest?: Manifest; error?: string };
+      const status = await statusResponse.json() as { status: string; manifest?: Manifest; error?: string; progress?: number; message?: string };
+      if (status.status === "cancelled") throw new Error("Separation cancelled.");
       if (status.status === "error") throw new Error(status.error || "Vocal separation failed.");
+      if (status.status === "processing") await send({ status: "downloading", progress: Math.max(5, Math.min(88, status.progress || 8)), phase: "processor", message: status.message || "Separating lead vocal…" });
       if (status.status === "ready" && status.manifest) { manifest = status.manifest; break; }
     }
   } else {
     manifest = await response.json() as Manifest;
   }
-  await send({ status: "downloading", progress: 55, phase: "storing", message: "Saving stems…" });
+  await send({ status: "downloading", progress: 90, phase: "storing", message: "Saving stems…" });
   if (!manifest.files?.backing || !manifest.files?.lead) {
     throw new Error("The separator returned an incomplete result.");
   }
