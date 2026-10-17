@@ -1,7 +1,9 @@
 import json
 import os
+import queue
 import re
 import shutil
+import signal
 import subprocess
 import time
 import threading
@@ -37,6 +39,72 @@ def run(command, timeout, binary=False):
         message = next((line for line in reversed(stderr.splitlines()) if line.strip()), "Processing failed.")
         raise RuntimeError(message[:500])
     return result
+
+
+def run_download(command, timeout, on_progress=None):
+    """Run yt-dlp with newline progress and keep its long request observable."""
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        start_new_session=True,
+    )
+    lines = queue.Queue()
+
+    def collect_output():
+        try:
+            for line in process.stdout:
+                lines.put(line)
+        finally:
+            lines.put(None)
+
+    reader = threading.Thread(target=collect_output, daemon=True)
+    reader.start()
+    output = []
+    last_percent = -1
+    deadline = time.monotonic() + timeout
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(command, timeout)
+            try:
+                line = lines.get(timeout=min(1, remaining))
+            except queue.Empty:
+                if process.poll() is not None:
+                    break
+                continue
+            if line is None:
+                break
+
+            output.append(line.rstrip())
+            del output[:-40]
+            match = re.search(r"AK_PROGRESS:\s*([0-9]+(?:\.[0-9]+)?)%", line)
+            if not match:
+                match = re.search(r"\[download\]\s+([0-9]+(?:\.[0-9]+)?)%", line)
+            if match and on_progress:
+                percent = max(0, min(100, round(float(match.group(1)))))
+                if percent != last_percent:
+                    last_percent = percent
+                    on_progress(percent)
+
+        return_code = process.wait(timeout=max(1, deadline - time.monotonic()))
+        if return_code:
+            message = next((line for line in reversed(output) if line.strip()), "Audio download failed.")
+            raise RuntimeError(message[:500])
+    except BaseException:
+        if process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+        raise
+    finally:
+        if process.stdout:
+            process.stdout.close()
 
 
 def detect_bpm(audio_path):
@@ -87,6 +155,7 @@ def download_audio_url(audio_url, dest: Path):
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "AKAudioProcessor/2.0"
+    protocol_version = "HTTP/1.1"
 
     def do_GET(self):
         if self.path == "/health":
@@ -140,12 +209,20 @@ class Handler(BaseHTTPRequestHandler):
                     ACTIVE_JOBS[job_id] = result
             threading.Thread(target=work, daemon=True).start()
             return self.respond_json(202, {"status": "processing", "jobId": job_id})
+        self.begin_ndjson()
         try:
-            return self.respond_json(200, self.perform_job(payload, True))
+            manifest = self.perform_job(
+                payload,
+                True,
+                lambda percent: self.send_ndjson({"status": "progress", "progress": percent}),
+            )
+            self.send_ndjson({"status": "ready", "manifest": manifest})
         except Exception as error:
-            return self.respond_error(500, str(error)[:500])
+            self.send_ndjson({"status": "error", "error": str(error)[:500]})
+        finally:
+            self.finish_ndjson()
 
-    def perform_job(self, payload, download_only):
+    def perform_job(self, payload, download_only, on_download_progress=None):
         job_lock = None
         try:
             cleanup_jobs()
@@ -178,7 +255,15 @@ class Handler(BaseHTTPRequestHandler):
             if has_audio and not download_only:
                 source = download_audio_url(audio_url, job_dir / "source")
             else:
-                run(["yt-dlp", "--no-playlist", "--retries", "5", "--fragment-retries", "5", "--extractor-retries", "3", "--socket-timeout", "25", "--retry-sleep", "http:linear=1:3", "--retry-sleep", "fragment:exp=1:8", "--js-runtimes", "deno", "-f", "bestaudio/best", "-x", "--audio-format", "flac", "--audio-quality", "0", "--embed-metadata", "--write-info-json", "-o", str(job_dir / "source.%(ext)s"), url], 900)
+                run_download([
+                    "yt-dlp", "--no-playlist", "--retries", "5", "--fragment-retries", "5",
+                    "--extractor-retries", "3", "--socket-timeout", "25",
+                    "--retry-sleep", "http:linear=1:3", "--retry-sleep", "fragment:exp=1:8",
+                    "--js-runtimes", "deno", "--newline", "--no-colors", "--progress", "--progress-delta", "1",
+                    "--progress-template", "download:AK_PROGRESS:%(progress._percent_str)s",
+                    "-f", "bestaudio/best", "-x", "--audio-format", "flac", "--audio-quality", "0",
+                    "--embed-metadata", "--write-info-json", "-o", str(job_dir / "source.%(ext)s"), url,
+                ], 900, on_download_progress)
                 source = job_dir / "source.flac"
                 info_path = job_dir / "source.info.json"
                 if info_path.is_file():
@@ -227,6 +312,37 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("content-length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def begin_ndjson(self):
+        self._ndjson_open = True
+        self.send_response(200)
+        self.send_header("content-type", "application/x-ndjson; charset=utf-8")
+        self.send_header("transfer-encoding", "chunked")
+        self.send_header("cache-control", "no-store")
+        self.end_headers()
+
+    def send_ndjson(self, event):
+        if not getattr(self, "_ndjson_open", False):
+            return
+        payload = json.dumps(event, separators=(",", ":")).encode("utf-8") + b"\n"
+        try:
+            self.wfile.write(f"{len(payload):X}\r\n".encode("ascii"))
+            self.wfile.write(payload)
+            self.wfile.write(b"\r\n")
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            # Keep the backend download alive if the editor tab disconnects.
+            self._ndjson_open = False
+
+    def finish_ndjson(self):
+        if not getattr(self, "_ndjson_open", False):
+            return
+        try:
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        self._ndjson_open = False
 
     def respond_error(self, status, message):
         body = message.encode("utf-8", "replace")
