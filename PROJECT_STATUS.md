@@ -1,5 +1,20 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 20 octubre 2026: reparación del flujo de audio
+
+Esta sección prevalece sobre los handoffs históricos inferiores. Producción oficial: **https://akstudiovocal.com**. Código publicado en `github/main`; se trabajó en el worktree administrado `ak-studio-repair` para preservar el checkout original con cambios del usuario.
+
+- Descarga: corregido el parser JSON que rechazaba el NDJSON real de `/download`. Transferencia FLAC a R2 por streaming; cinco instancias fijas compartidas por descarga y lectura de archivos, sin una sexta instancia para health.
+- Letras: metadatos normalizados tanto desde oEmbed como desde yt-dlp, Unicode, búsquedas alternativas con timeout y validación de canción/artista. Fallos del catálogo no bloquean el audio ni dejan letras de la canción anterior. Se distingue catálogo temporalmente caído de ausencia de coincidencia. Letras planas siguen teniendo tiempos aproximados, no sincronización real.
+- Separación: se mantiene **Mel-RoFormer Karaoke**, mismo checkpoint y ajustes FP32/overlap 2/batch 1, en CPU standard-4 (4 vCPU, 12 GiB, máximo una instancia). No se contrató GPU ni otro servicio. Cola serial acotada, reintento de IDs fallidos/cancelados, cancelación del proceso y keepalive solo durante trabajos activos. Subproceso persistente para reutilizar el modelo; eliminado análisis librosa redundante después de separar.
+- Editor: se puede buscar/arrastrar el cabezal durante separación; revisiones explícitas de seek actualizan el reloj de audio. Botón Cancel separation y mensajes con progreso real, sin afirmar que falta una GPU cuando el servicio simplemente falla.
+- Publicación: imágenes OCI fijadas por digest en `processor/wrangler*.jsonc`, conservando dependencias y modelo de las imágenes desplegadas. `scripts/update-processor-image.mjs` permite parchear solo el código y verificar el checkpoint; no imprime credenciales. Los contenedores antiguos activos pueden acabar usando el proceso viejo hasta su siguiente reinicio aunque el rollout ya marque completado.
+- Wrangler 4.92 falla al desplegar estos Containers por conflicto entre observabilidad antigua y nueva. Para los procesadores se usó 4.151.2. El build frontend genera `legacy_env`, por lo que su despliegue se mantiene con la versión fijada 4.92. No borrar secretos ni bindings al desplegar.
+- Pasan TypeScript, build Cloudflare, compilación Python y pruebas de NDJSON, letras, routing, cola/cancel/retry/reutilización, orquestación de stems, caché, timeline, cancelación y escala de exportación.
+- Pruebas reales: descarga y letras de Believe/Pentatonix, BPM/tonalidad estimados, reproducción/pausa/seek durante separación, zoom, cancelación y navegación cuenta/planes/fuentes/estudio. Separación completa terminada: dos pistas FLAC de 188.23 segundos, ambas decodificadas y reproducidas. Tras recargar, el proyecto restauró los stems sin volver a separar.
+- También se probó importar un WAV sintético, crear automáticamente Audio 3 por solapamiento, moverlo, dividirlo en dos y retirar ambos fragmentos con Delete. Probados Eliminar/Undo/Redo en letras. Se corrigió un crash al leer `event.currentTarget.textContent` dentro de un updater diferido después de blur; ahora se captura el valor durante el evento y se selecciona la línea al enfocar su texto.
+- La CPU sigue siendo el límite de rendimiento: no afirmar una aceleración multiplicativa sin comparación controlada. Estado, prueba y capturas de esta ronda en `outputs/repair-verification/` (local, ignorado por Git).
+
 ## Actualización 26 septiembre: micrófono y fondos
 
 - No se añadió importación de vídeos ni drag/drop. AudioRecorder usa MediaRecorder y el micrófono seleccionado (System default o deviceId exacto), permite detener, preescuchar, descartar y usar la toma. Permiso se solicita solo al pulsar Record audio.
