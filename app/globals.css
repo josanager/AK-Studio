@@ -1266,3 +1266,16 @@ html:has(.ak-shell) body{
 .profile-details dt{color:#666}
 .profile-details dd{margin:0;overflow-wrap:anywhere}
 @media(max-width:720px){.profile-menu-trigger{width:44px;height:44px;padding:0;justify-content:center}.profile-menu-trigger>span,.profile-menu-chevron{display:none}.account-section-nav{gap:16px}.profile-details{padding:16px}.profile-details dl>div{grid-template-columns:82px minmax(0,1fr)}}
+.patreon-mark{display:block;width:18px;height:20px;flex-shrink:0}
+.signin-page.signin-minimal-page{background:var(--workspace,#f3f3f1);padding:24px;align-items:center}
+.signin-panel.signin-minimal{display:flex;flex-direction:column;align-items:center;gap:32px;width:min(360px,100%);min-height:0;background:transparent;border:0}
+.signin-minimal .signin-brand{min-height:0;align-items:center;justify-content:center;padding:0;background:transparent;color:#111}
+.signin-minimal .signin-brand b{margin:0;font-size:20px}
+.signin-minimal .signin-brand>span{width:44px;height:44px}
+.signin-panel.signin-minimal>.signin-options{display:grid;gap:12px;width:100%;padding:0;align-self:stretch}
+.signin-minimal .google-signin{max-width:none;min-height:48px;height:auto;padding:12px 18px;border:1px solid #bdbdb7;background:#fff;color:#111;font-size:15px;font-weight:600}
+.signin-minimal .google-signin:hover{background:#e9e9e5}
+.signin-minimal .google-signin:disabled{opacity:.65;cursor:wait}
+.signin-minimal .google-signin:focus-visible{outline:2px solid #111;outline-offset:3px}
+.signin-minimal .google-signin>span{background:transparent;border-radius:0}
+.signin-minimal [role="alert"]{margin:0;font-size:14px;text-align:left}

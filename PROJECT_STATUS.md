@@ -1,5 +1,14 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 20 octubre: anuncio Patreon y acceso mínimo
+
+- Publicación pública en inglés creada y publicada por petición explícita: https://www.patreon.com/acapellakaraoke/posts/your-patreon-now-172928840 . Explica Pro incluido con membresía activa >=US$15/mes, acceso Patreon, vinculación desde Google/Plans, límites de niveles inferiores y uso autorizado de música.
+- Nivel publicado de US$15, ID 9833574, descripción actualizada en inglés con AK Studio Pro, exportación sin marca y pasos de vinculación. Precio, título, portada y siete beneficios existentes conservados. No se editaron precio, cobros, niveles inferiores ni el nivel de US$25 no publicado.
+- `/signin` reducido a marca AK Studio y los dos botones Patreon/Google; retiradas lista de beneficios y explicaciones del acceso. Instrucciones para cuentas Google existentes siguen en Plans y error de acceso. Composición compacta centrada, estados de carga/error y foco de teclado conservados.
+- Símbolo actual Patreon obtenido del SVG de su propia navegación oficial (viewBox 436x476), no la antigua P circular. Mismas dimensiones ópticas que Google. Las skills Uncodixfy e Impeccable guiaron la eliminación de texto y el uso de la identidad monocroma existente, sin rediseñar otras rutas.
+- Pasan TypeScript, build Cloudflare y prueba de política Patreon. No cambios al audio, proyectos ni permisos de membresía en esta ronda.
+- Publicado en Cloudflare versión 94e9a552-0691-4419-a2d6-c3ca8dbf38df. Producción verificada: exactamente dos botones accesibles, ambos con SVG; 360×50 px en desktop y 342×50 px en viewport móvil emulado de 390 px, sin desbordamiento horizontal. Se restauró la emulación al terminar.
+
 ## Actualización 20 octubre: Patreon sustituye nuevas altas de Stripe
 
 - OAuth Patreon API v2 registrado para AK Studio Vocal, callback oficial `/api/auth/callback/patreon`. Client ID/secret y webhook secret configurados como secretos de Cloudflare, nunca en Git. Campaña verificada `9673516`, Acapella Karaoke, moneda USD.
