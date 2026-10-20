@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   const { record, unavailable } = await findLyrics(song);
   const lyrics = parseLyrics(record).slice(0, 300);
   return Response.json({ title: record?.trackName || song.title, artist: record?.artistName || song.artist,
-    duration: record?.duration || song.duration, album: record?.albumName, lyrics, lyricsSource: record ? "LRCLIB" : null,
+    duration: record?.duration || song.duration, album: record?.albumName, lyrics, lyricsSource: record ? record.source || "LRCLIB" : null,
     thumbnail, sourceUrl: source.toString(),
     warning: lyrics.length ? null : unavailable ? "Lyrics are temporarily unavailable. Audio download can continue." : "No matching lyrics found. You can add lyrics manually.",
     processing: { audio: "download_on_create", tempo: "pending", stems: "optional" } });

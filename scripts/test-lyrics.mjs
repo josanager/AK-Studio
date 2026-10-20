@@ -36,6 +36,26 @@ try{
  assert.equal(attempts,2);
  globalThis.fetch=async()=>Response.json({error:"upstream failure"});
  assert.equal((await findLyrics(mashup)).unavailable,true);
+ globalThis.fetch=async input=>{
+  const url=new URL(input);
+  if(url.hostname==="lrclib.net")return new Response("busy",{status:503});
+  if(url.pathname==="/api/search/get")return Response.json({code:200,result:{songs:[
+   {id:1,name:"La La Latch",artists:[{name:"Wrong artist"}],duration:221520},
+   {id:2,name:"La La Latch",artists:[{name:"Pentatonix"}],duration:221520}
+  ]}});
+  assert.equal(url.searchParams.get("id"),"2");
+  return Response.json({lrc:{lyric:"[00:02.00]test line\n[00:04.00]another line"}});
+ };
+ const alternate=await findLyrics(mashup);
+ assert.equal(alternate.record.source,"NetEase");
+ assert.equal(parseLyrics(alternate.record).length,2);
+ globalThis.fetch=async input=>{
+  const url=new URL(input);
+  if(url.hostname==="lrclib.net")return Response.json([]);
+  if(url.hostname==="music.163.com")return Response.json({code:200,result:{songs:[]}});
+  return Response.json({lyrics:"plain test lyric line\nsecond plain test line"});
+ };
+ assert.equal((await findLyrics(mashup)).record.source,"lyrics.ovh");
  globalThis.fetch=async()=>{throw Error("unavailable")};
  const missing=await findLyrics(song);
  assert.equal(missing.unavailable,true);

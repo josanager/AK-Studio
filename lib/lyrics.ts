@@ -1,5 +1,5 @@
 export type SongIdentity = { title: string; artist: string; duration?: number };
-export type LyricsRecord = { trackName?: string; artistName?: string; albumName?: string; plainLyrics?: string; syncedLyrics?: string; duration?: number; instrumental?: boolean };
+export type LyricsRecord = { trackName?: string; artistName?: string; albumName?: string; plainLyrics?: string; syncedLyrics?: string; duration?: number; instrumental?: boolean; source?: "LRCLIB" | "NetEase" | "lyrics.ovh" };
 export type TimedLyric = { text: string; start: number; end: number };
 const decoration = /\s*[([][^)\]]*(?:official|lyrics?|audio|video|visualizer|remaster)[^)\]]*[)\]]/gi;
 // YouTube often appends the original artists as mashup credits, not as
@@ -60,6 +60,36 @@ async function search(params: Record<string, string>): Promise<LyricsRecord[]> {
   }
   throw new Error("Lyrics service is temporarily unavailable.");
 }
+async function findNetEaseLyrics(song: SongIdentity): Promise<LyricsRecord | undefined> {
+  const endpoint=new URL("https://music.163.com/api/search/get");
+  endpoint.search=new URLSearchParams({s:`${song.artist} ${song.title}`,type:"1",limit:"10"}).toString();
+  const headers={"user-agent":"Mozilla/5.0 (compatible; AKStudio/1.0)"};
+  const response=await fetch(endpoint,{headers,signal:AbortSignal.timeout(6000)});
+  if(!response.ok)throw new Error("Alternate lyrics search unavailable.");
+  type CatalogSong={id:number;name:string;duration?:number;artists?:{name:string}[]};
+  const data=await response.json() as {code?:number;result?:{songs?:CatalogSong[]}};
+  if(data.code!==200)throw new Error("Alternate lyrics search unavailable.");
+  const records=(data.result?.songs||[]).map(item=>({id:item.id,trackName:item.name,artistName:(item.artists||[]).map(a=>a.name).join(" & "),duration:item.duration?item.duration/1000:undefined,syncedLyrics:"candidate"}));
+  const best=selectLyrics(records,song) as (LyricsRecord&{id:number})|undefined;
+  if(!best)return;
+  const lyrics=await fetch(`https://music.163.com/api/song/lyric?id=${best.id}&lv=1`,{headers,signal:AbortSignal.timeout(6000)});
+  if(!lyrics.ok)throw new Error("Alternate lyrics unavailable.");
+  const result=await lyrics.json() as {lrc?:{lyric?:string};nolyric?:boolean};
+  const text=result.lrc?.lyric;
+  if(result.nolyric||!text||text.includes("纯音乐"))return;
+  const syncedLyrics=text.split("\n").filter(line=>!/\]\s*(?:作词|作曲|编曲|制作人|词|曲)\s*[:：]/.test(line)).join("\n");
+  if(!/\[\d+:\d+/.test(syncedLyrics))return;
+  return {...best,syncedLyrics,source:"NetEase"};
+}
+async function findPlainFallback(song:SongIdentity):Promise<LyricsRecord|undefined>{
+  const response=await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artist)}/${encodeURIComponent(song.title)}`,{signal:AbortSignal.timeout(8000)});
+  if(response.status===404)return;
+  if(!response.ok)throw new Error("Alternate lyrics unavailable.");
+  const data=await response.json() as {lyrics?:string};
+  if(typeof data.lyrics!=="string")throw new Error("Alternate lyrics returned an invalid response.");
+  if(data.lyrics.trim().length<20||data.lyrics.length>100000)return;
+  return {trackName:song.title,artistName:song.artist,duration:song.duration,plainLyrics:data.lyrics.trim(),source:"lyrics.ovh"};
+}
 export async function findLyrics(song: SongIdentity) {
   song = { ...song, title: lyricsTitle(song.title) };
   const found: LyricsRecord[] = [];
@@ -70,6 +100,10 @@ export async function findLyrics(song: SongIdentity) {
   const alternatives = await Promise.allSettled([search({ q: `${song.artist} ${song.title}` }), search({ track_name: song.title })]);
   for (const result of alternatives) if (result.status === "fulfilled") { found.push(...result.value); reachable = true; }
   best = selectLyrics(found, song);
+  if(!best){
+    try{best=await findNetEaseLyrics(song);reachable=true}catch{/* independent provider fallback */}
+    if(!best)try{best=await findPlainFallback(song);reachable=true}catch{/* preserve upstream failure state */}
+  }
   if (!best) console.warn("Lyrics lookup result", { reachable, candidates: found.length });
   return { record: best, unavailable: !reachable };
 }
