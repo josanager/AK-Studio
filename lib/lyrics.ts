@@ -41,19 +41,20 @@ async function search(params: Record<string, string>): Promise<LyricsRecord[]> {
   const endpoint = new URL("https://lrclib.net/api/search");
   Object.entries(params).forEach(([key, value]) => endpoint.searchParams.set(key, value));
   const response = await fetch(endpoint, { headers: { "user-agent": "AK Studio/1.0 (akstudiovocal.com)" }, signal: AbortSignal.timeout(6000) });
-  if (!response.ok) throw new Error(`Lyrics service returned ${response.status}`);
+  if (!response.ok) { console.warn("Lyrics upstream HTTP", response.status); throw new Error(`Lyrics service returned ${response.status}`); }
   const records: unknown = await response.json();
   return Array.isArray(records) ? records.filter(r => r && typeof r === "object") : [];
 }
 export async function findLyrics(song: SongIdentity) {
   const found: LyricsRecord[] = [];
   let reachable = false;
-  try { found.push(...await search({ track_name: song.title, artist_name: song.artist })); reachable = true; } catch { /* alternate queries */ }
+  try { found.push(...await search({ track_name: song.title, artist_name: song.artist })); reachable = true; } catch(error) { console.warn("Lyrics primary lookup failed", error instanceof Error ? error.name : "lookup"); }
   let best = selectLyrics(found, song);
   if (best?.syncedLyrics && normalizeSong(best.trackName) === normalizeSong(song.title) && normalizeSong(best.artistName) === normalizeSong(song.artist)) return { record: best, unavailable: false };
   const alternatives = await Promise.allSettled([search({ q: `${song.artist} ${song.title}` }), search({ track_name: song.title })]);
   for (const result of alternatives) if (result.status === "fulfilled") { found.push(...result.value); reachable = true; }
   best = selectLyrics(found, song);
+  if (!best) console.warn("Lyrics lookup result", { reachable, candidates: found.length });
   return { record: best, unavailable: !reachable };
 }
 export function parseLyrics(record?: LyricsRecord): TimedLyric[] {

@@ -2,7 +2,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { gzipSync } from "node:zlib";
+import { gzipSync, gunzipSync } from "node:zlib";
 const mode = process.argv[2];
 if (!["download", "separator"].includes(mode)) throw Error("Choose download or separator");
 const account = "1293e708f0dd291ae3c8da2be92d0ff5";
@@ -44,6 +44,12 @@ if (manifest.manifests) {
  manifest = await (await request(`/v2/${repo}/manifests/${digest}`, { headers: { accept } })).json();
 }
 const config = await (await request(`/v2/${repo}/blobs/${manifest.config.digest}`)).json();
+if (process.argv.includes("--inspect")) {
+ const last = manifest.layers.at(-1);
+ const layerBytes = Buffer.from(await (await request(`/v2/${repo}/blobs/${last.digest}`)).arrayBuffer());
+ console.log(JSON.stringify({ mode, command: config.config.Cmd, entrypoint: config.config.Entrypoint, workingDirectory: config.config.WorkingDir, layerType: last.mediaType, repairCode: gunzipSync(layerBytes).includes(Buffer.from("repair-20261020")) }));
+ process.exit(0);
+}
 if (config.architecture !== "amd64" || config.os !== "linux") throw Error("Expected linux/amd64 service image");
 const model = config.config?.Env?.find(value => value.startsWith("SEPARATOR_MODEL="))?.slice(16);
 if (mode === "separator" && model !== "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt") throw Error("Unexpected deployed model; refusing to replace it");
