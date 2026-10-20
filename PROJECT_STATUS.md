@@ -1,5 +1,11 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 20 octubre: excepción privada de propietario
+
+- Por petición explícita posterior, únicamente `josanager@gmail.com` obtiene Pro ilimitado sin Patreon. `lib/plans.ts` verifica el correo exacto y el ID de la identidad autenticada contra `auth_user`, con `email_verified=1`. No usa listas configurables, coincidencias parciales ni alias Gmail; no concede privilegios por un correo enviado por el cliente.
+- La excepción devuelve `ownerAccess:true`, plan Pro, weeklyLimit null y canCreate true, sin depender de disponibilidad o membresía Patreon. Plans identifica este beneficio como Owner access, no como una suscripción Patreon activa.
+- Las demás cuentas conservan la política Patreon anterior. scripts/test-owner-plan.mjs prueba propietario verificado, alias y otros correos/IDs rechazados, correo no verificado rechazado y miembros Patreon intactos. También pasan scripts/test-patreon.mjs y TypeScript.
+
 ## Actualización 20 octubre: anuncio Patreon y acceso mínimo
 
 - Publicación pública en inglés creada y publicada por petición explícita: https://www.patreon.com/acapellakaraoke/posts/your-patreon-now-172928840 . Explica Pro incluido con membresía activa >=US$15/mes, acceso Patreon, vinculación desde Google/Plans, límites de niveles inferiores y uso autorizado de música.

@@ -3,7 +3,7 @@ import type { AppUser } from "../app/auth";
 import {getPatreonSnapshot,type PatreonSnapshot} from "./patreon";
 
 export type PlanName = "free" | "pro";
-export type PlanSnapshot = { plan: PlanName; usedThisWeek: number; weeklyLimit: number | null; canCreate: boolean; patreon?:PatreonSnapshot };
+export type PlanSnapshot = { plan: PlanName; usedThisWeek: number; weeklyLimit: number | null; canCreate: boolean; patreon?:PatreonSnapshot; ownerAccess?:boolean };
 
 export function currentWeekKey(now = new Date()) {
   const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -22,6 +22,12 @@ export async function ensureAppUser(user: AppUser) {
 
 export async function getPlanSnapshot(user: AppUser): Promise<PlanSnapshot> {
   await ensureAppUser(user);
+  // Owner-only exception: require the authenticated, verified database identity.
+  // Do not accept client-supplied email, aliases, domains, or configurable lists.
+  if(user.email.toLowerCase()==="josanager@gmail.com"){
+    const owner=await env.DB.prepare("SELECT id FROM auth_user WHERE id=? AND lower(email)='josanager@gmail.com' AND email_verified=1 LIMIT 1").bind(user.userId).first<{id:string}>();
+    if(owner)return {plan:"pro",usedThisWeek:0,weeklyLimit:null,canCreate:true,ownerAccess:true};
+  }
   const patreon=await getPatreonSnapshot(user.userId);
   const pro=patreon.pro;
   const usage = await env.DB.prepare("SELECT COUNT(*) AS total FROM weekly_usage WHERE user_id=? AND week_key=? AND status IN ('processing','completed')")
