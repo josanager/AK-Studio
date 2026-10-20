@@ -245,7 +245,7 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
     setAnalyzed(true);setPosition(0);setNotice(null);setDownloadProgress(1);setProgressLabel("Downloading song…");
     const response=await fetch("/api/audio",{method:"POST",headers:{"content-type":"application/json",accept:"application/x-ndjson"},body:JSON.stringify({url})});
     let audio:Record<string,unknown>;
-    if((response.headers.get("content-type")||"").includes("ndjson"))audio=await readAudioNdjson(response,n=>setDownloadProgress(p=>Math.max(p||0,n)),event=>{if(typeof event.message==="string")setProgressLabel(event.message)});
+    if((response.headers.get("content-type")||"").includes("ndjson"))audio=await readAudioNdjson(response,n=>setDownloadProgress(p=>Math.max(p||0,n)),event=>{if(typeof event.message==="string")setProgressLabel(typeof event.progress==="number"?`${event.message} ${Math.round(event.progress)}%`:event.message)});
     else{audio=await response.json() as Record<string,unknown>;if(!response.ok)throw new Error(typeof audio.error==="string"?audio.error:"The song could not be downloaded.")}
     if(audio.status!=="ready")throw new Error("The audio service did not finish the download. Please retry.");
     const original=typeof audio.audioUrl==="string"?audio.audioUrl:null, backing=typeof audio.backingUrl==="string"?audio.backingUrl:original;
@@ -310,17 +310,17 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
     if(audioResponse.status===401)throw new Error("Sign in to separate stems.");
     if(audioResponse.status===503||audioResponse.status===404||audioResponse.status===400){
       const err=await audioResponse.json().catch(()=>({})) as{error?:string};
-      throw new Error(err.error||"Stem separation needs the GPU processor. Full mix still plays.");
+      throw new Error(err.error||"Vocal separation is temporarily unavailable. Retry or keep using the full mix.");
     }
     const ctype=audioResponse.headers.get("content-type")||"";
     let audio:Record<string,unknown>;
-    if(ctype.includes("ndjson")){audio=await readAudioNdjson(audioResponse,(n)=>{setDownloadProgress(n);setProgressLabel(`Separating lead vocal… ${Math.max(0,Math.min(100,n))}%`)},event=>{if(typeof event.message==="string")setProgressLabel(event.message)})}
-    else{audio=await audioResponse.json() as Record<string,unknown>;if(!audioResponse.ok)throw new Error(typeof audio.error==="string"?audio.error:"Stem separation needs the GPU processor. Full mix still plays.");setDownloadProgress(100);setProgressLabel("Separating lead vocal… 100%")}
-    if(audio.status==="error")throw new Error(sanitizeClientError(typeof audio.error==="string"?audio.error:"Stem separation needs the GPU processor. Full mix still plays."));
+    if(ctype.includes("ndjson")){audio=await readAudioNdjson(audioResponse,(n)=>{setDownloadProgress(n);setProgressLabel(`Separating lead vocal… ${Math.max(0,Math.min(100,n))}%`)},event=>{if(typeof event.message==="string")setProgressLabel(typeof event.progress==="number"?`${event.message} ${Math.round(event.progress)}%`:event.message)})}
+    else{audio=await audioResponse.json() as Record<string,unknown>;if(!audioResponse.ok)throw new Error(typeof audio.error==="string"?audio.error:"Vocal separation is temporarily unavailable. Retry or keep using the full mix.");setDownloadProgress(100);setProgressLabel("Separating lead vocal… 100%")}
+    if(audio.status==="error")throw new Error(sanitizeClientError(typeof audio.error==="string"?audio.error:"Vocal separation is temporarily unavailable. Retry or keep using the full mix."));
     const backingUrl=typeof audio.backingUrl==="string"?audio.backingUrl:null;
     const vocalUrl=typeof audio.vocalUrl==="string"?audio.vocalUrl:null;
     const audioUrl=typeof audio.audioUrl==="string"?audio.audioUrl:audioApiUrl;
-    if(!backingUrl||!vocalUrl)throw new Error("Stem separation needs the GPU processor. Full mix still plays.");
+    if(!backingUrl||!vocalUrl)throw new Error("Vocal separation is temporarily unavailable. Retry or keep using the full mix.");
     setAudioApiUrl(audioUrl);setBackingApiUrl(backingUrl);setVocalApiUrl(vocalUrl);
     revokeAudioUrl(backingSrc);revokeAudioUrl(vocalSrc);
     const[cachedBacking,cachedVocal]=await Promise.all([cachedAudioUrl(backingUrl),cachedAudioUrl(vocalUrl)]);
@@ -333,7 +333,7 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
     window.setTimeout(()=>{setDownloadProgress(null);setProgressLabel(null)},700);
     setNotice({kind:"success",text:"Lead vocal separated · mute controls unlocked"});
   }catch(error){
-    setNotice({kind:"error",text:sanitizeClientError(error instanceof Error?error.message:"Stem separation needs the GPU processor. Full mix still plays.")});
+    setNotice({kind:"error",text:sanitizeClientError(error instanceof Error?error.message:"Vocal separation is temporarily unavailable. Retry or keep using the full mix.")});
     setProgressLabel(null);
     window.setTimeout(()=>setDownloadProgress(null),2500);
   }finally{if(controller.signal.aborted){setNotice({kind:"success",text:"Separation cancelled."});setDownloadProgress(null);setProgressLabel(null)}separationAbortRef.current=null;setSeparating(false)}
