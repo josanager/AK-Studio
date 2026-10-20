@@ -256,7 +256,7 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
     setAudioSrc(cachedOriginal);setBackingSrc(cachedBacking);setStemMuted({backing:false,vocal:true});
     setModel(typeof audio.model==="string"?audio.model:"full-mix");
     if(typeof audio.bpm==="number"&&audio.bpm>0)setBpm(audio.bpm);
-    if(typeof audio.duration==="number"&&audio.duration>0){nextDuration=audio.duration;setAudioDuration(audio.duration);setDuration(audio.duration)}
+    if(typeof audio.duration==="number"&&audio.duration>0){const actualDuration=audio.duration,ratio=nextDuration/actualDuration;nextDuration=actualDuration;setLyrics(lines=>lines.map(line=>({...line,width:line.width*ratio})));setAudioDuration(actualDuration);setDuration(actualDuration)}
     if(details.metadataPending||(!details.lyrics?.length&&typeof audio.title==="string"&&typeof audio.artist==="string")){
       if(typeof audio.title==="string")setTrack({title:audio.title,artist:typeof audio.artist==="string"?audio.artist:"YouTube"});
       if(id&&typeof audio.title==="string"&&typeof audio.artist==="string"){
