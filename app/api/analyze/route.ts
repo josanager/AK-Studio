@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     ? await findOwnedStem(body.audioId, "original", user.userId) : null;
   if (!stored && !(await getPlanSnapshot(user)).canCreate) return Response.json({ error: "Your free karaoke for this week is already used. Upgrade to Pro for unlimited projects.", code: "WEEKLY_LIMIT" }, { status: 429 });
   let song: SongIdentity | null = stored && typeof body.title === "string" && typeof body.artist === "string"
-    ? { title: body.title.slice(0, 300), artist: body.artist.slice(0, 200), duration: body.duration } : null;
+    ? { ...identifySong(body.title.slice(0, 300), body.artist.slice(0, 200)), duration: body.duration } : null;
   let thumbnail: string | undefined;
   if (!song) {
     try {
