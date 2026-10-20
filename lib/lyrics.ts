@@ -2,8 +2,13 @@ export type SongIdentity = { title: string; artist: string; duration?: number };
 export type LyricsRecord = { trackName?: string; artistName?: string; albumName?: string; plainLyrics?: string; syncedLyrics?: string; duration?: number; instrumental?: boolean };
 export type TimedLyric = { text: string; start: number; end: number };
 const decoration = /\s*[([][^)\]]*(?:official|lyrics?|audio|video|visualizer|remaster)[^)\]]*[)\]]/gi;
+// YouTube often appends the original artists as mashup credits, not as
+// part of the catalog title. Keep meaningful version labels such as "Live".
+export function lyricsTitle(value: string) {
+  return value.replace(decoration, "").replace(/\s*[([][^)\]]*\bmashup\b[^)\]]*[)\]]/gi, "").trim();
+}
 export function normalizeSong(value = "") {
-  return value.normalize("NFKD").replace(/\p{M}/gu, "").normalize("NFC").replace(decoration, "")
+  return lyricsTitle(value).normalize("NFKD").replace(/\p{M}/gu, "").normalize("NFC")
     .replace(/[^\p{L}\p{N}]+/gu, " ").trim().toLowerCase();
 }
 export function identifySong(rawTitle: string, channel: string): SongIdentity {
@@ -40,12 +45,23 @@ export function selectLyrics(records: LyricsRecord[], song: SongIdentity): Lyric
 async function search(params: Record<string, string>): Promise<LyricsRecord[]> {
   const endpoint = new URL("https://lrclib.net/api/search");
   Object.entries(params).forEach(([key, value]) => endpoint.searchParams.set(key, value));
-  const response = await fetch(endpoint, { headers: { "user-agent": "AK Studio/1.0 (akstudiovocal.com)" }, signal: AbortSignal.timeout(6000) });
-  if (!response.ok) { console.warn("Lyrics upstream HTTP", response.status); throw new Error(`Lyrics service returned ${response.status}`); }
-  const records: unknown = await response.json();
-  return Array.isArray(records) ? records.filter(r => r && typeof r === "object") : [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let response: Response;
+    try { response = await fetch(endpoint, { headers: { "user-agent": "AK Studio/1.0 (akstudiovocal.com)" }, signal: AbortSignal.timeout(6000) }); }
+    catch (error) { if (attempt) throw error; await new Promise(resolve=>setTimeout(resolve,400)); continue; }
+    if (!response.ok) {
+      console.warn("Lyrics upstream HTTP", response.status);
+      if (!attempt && [408,425,429,500,502,503,504].includes(response.status)) { await new Promise(resolve=>setTimeout(resolve,400)); continue; }
+      throw new Error(`Lyrics service returned ${response.status}`);
+    }
+    const records: unknown = await response.json();
+    if (!Array.isArray(records)) throw new Error("Lyrics service returned an invalid catalog response.");
+    return records.filter(r => r && typeof r === "object");
+  }
+  throw new Error("Lyrics service is temporarily unavailable.");
 }
 export async function findLyrics(song: SongIdentity) {
+  song = { ...song, title: lyricsTitle(song.title) };
   const found: LyricsRecord[] = [];
   let reachable = false;
   try { found.push(...await search({ track_name: song.title, artist_name: song.artist })); reachable = true; } catch(error) { console.warn("Lyrics primary lookup failed", error instanceof Error ? error.name : "lookup"); }

@@ -204,6 +204,27 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
   },900);
   return()=>{if(saveTimerRef.current)window.clearTimeout(saveTimerRef.current)};
  },[background,localRecording,hydrating,analyzed,url,track,lyrics,duration,audioId,audioApiUrl,backingApiUrl,vocalApiUrl,model,bpm,aspect,exportQuality,exportFps,font,fontSize,lineHeight,textStyle,textPosition,stemMuted,zoom,selected,projectId,plan.plan]);
+ const recoveredLyrics=useRef(new Set<string>());
+ useEffect(()=>{
+  const key=`${audioId}|${url}`;
+  if(audioId&&lyrics.length){recoveredLyrics.current.add(key);return}
+  if(hydrating||processing||separating||exporting||!analyzed||!audioId||!track.title||!isYouTubeLink(url)||recoveredLyrics.current.has(key))return;
+  const controller=new AbortController();
+  let settled=false;
+  // Wait for project restoration's save guard before adding recovered text.
+  const timer=window.setTimeout(()=>{recoveredLyrics.current.add(key);void(async()=>{
+   try{
+    const response=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({url,audioId,title:track.title,artist:track.artist,duration:audioDuration||duration}),signal:controller.signal});
+    const data=await response.json() as {lyrics?:ApiLyric[];warning?:string;error?:string};
+    if(controller.signal.aborted)return;
+    settled=true;
+    if(!response.ok)throw new Error(data.error||"Lyrics lookup failed.");
+    if(data.lyrics?.length){const length=Math.max(1,duration);setLyrics(data.lyrics.slice(0,300).map(line=>({text:line.text,start:line.start,width:Math.max(.05,(line.end-line.start)/length*100)})));setSelected(0);setNotice({kind:"success",text:"Lyrics recovered automatically · existing audio kept."})}
+    else setNotice({kind:"success",text:data.warning?.includes("temporarily")?"Audio ready · Lyrics service temporarily unavailable.":"Audio ready · No matching lyrics found in the catalog."});
+   }catch(error){if(!controller.signal.aborted){settled=true;setNotice({kind:"error",text:error instanceof Error?error.message:"Lyrics lookup failed."})}}
+  })()},900);
+  return()=>{window.clearTimeout(timer);controller.abort();if(!settled)recoveredLyrics.current.delete(key)};
+ },[hydrating,processing,separating,exporting,analyzed,audioId,url,lyrics.length,track.title,track.artist,audioDuration,duration]);
  async function useRecording(blob:Blob){
   setPlaying(false);
   try{await audioTimeline.add(blob,currentSeconds);setLocalRecording(true);setMuted(false);if(!analyzed){setDuration(.5);setAnalyzed(true);setTrack({title:"Microphone recording",artist:""})}setSaveNote("Local recording · not saved");setNotice({kind:"success",text:"Recording added at playhead · stays on this device."})}catch{setNotice({kind:"error",text:"Could not decode recording. Please record again."})}
