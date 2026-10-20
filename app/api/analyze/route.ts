@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       const endpoint = new URL("https://www.youtube.com/oembed");
       endpoint.searchParams.set("url", `https://www.youtube.com/watch?v=${youtubeVideoId(source)}`);
       endpoint.searchParams.set("format", "json");
-      const response = await fetch(endpoint, { signal: AbortSignal.timeout(8000) });
+      const response = await fetch(endpoint, { headers: { "user-agent": "AK Studio/1.0" }, signal: AbortSignal.timeout(8000) });
       if (response.ok) {
         const metadata = await response.json() as { title?: string; author_name?: string; thumbnail_url?: string };
         if (metadata.title) song = identifySong(metadata.title, metadata.author_name || "YouTube");

@@ -267,7 +267,7 @@ export default function Studio({user,plan}:{user:{name:string,email:string};plan
         }catch{/* Optional lyrics lookup must not invalidate downloaded audio. */}
       }
     }
-    setDownloadProgress(100);setProgressLabel(null);setNotice({kind:"success",text:details.lyrics?.length?`Ready · audio and lyrics · ${details.lyricsSource||"lyrics"}`:"Audio ready · No matching lyrics found. Add lyrics manually."});
+    setDownloadProgress(100);setProgressLabel(null);setNotice({kind:"success",text:details.lyrics?.length?`Ready · audio and lyrics · ${details.lyricsSource||"lyrics"}`:details.warning?.includes("temporarily")?"Audio ready · Lyrics service temporarily unavailable. Try again or add lyrics manually.":"Audio ready · No matching lyrics found. Add lyrics manually."});
   }catch(error){setNotice({kind:"error",text:sanitizeClientError(error instanceof Error?error.message:"The song could not be downloaded.")});setProgressLabel(null)}
   finally{setProcessing(false);setDownloadProgress(null)}
  }
