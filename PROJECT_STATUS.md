@@ -5,6 +5,7 @@
 - Por petición explícita posterior, únicamente `josanager@gmail.com` obtiene Pro ilimitado sin Patreon. `lib/plans.ts` verifica el correo exacto y el ID de la identidad autenticada contra `auth_user`, con `email_verified=1`. No usa listas configurables, coincidencias parciales ni alias Gmail; no concede privilegios por un correo enviado por el cliente.
 - La excepción devuelve `ownerAccess:true`, plan Pro, weeklyLimit null y canCreate true, sin depender de disponibilidad o membresía Patreon. Plans identifica este beneficio como Owner access, no como una suscripción Patreon activa.
 - Las demás cuentas conservan la política Patreon anterior. scripts/test-owner-plan.mjs prueba propietario verificado, alias y otros correos/IDs rechazados, correo no verificado rechazado y miembros Patreon intactos. También pasan scripts/test-patreon.mjs y TypeScript.
+- Publicado en versión e7019f4c-6fd4-406f-9ac9-04da47625eba. Verificado en producción tras iniciar sesión con el Patreon ya vinculado: misma cuenta josanager@gmail.com, Plans muestra Owner access y `/api/plan` devuelve plan pro, weeklyLimit null, canCreate true, ownerAccess true. Esto también confirma login Patreon desde una sesión sin autenticar, conservando la cuenta local. No se modificó ni recargó el proyecto del editor que el usuario tenía abierto.
 
 ## Actualización 20 octubre: anuncio Patreon y acceso mínimo
 
