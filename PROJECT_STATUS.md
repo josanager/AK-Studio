@@ -1,5 +1,14 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 20 octubre por la noche: letras de mashups y recuperación
+
+- Caso reproducido del usuario: La La Latch (Sam Smith/Disclosure/Naughty Boy Mashup), Pentatonix, enlace KeXGgoixuT4. Las búsquedas usaban los créditos entre paréntesis como título y rechazaban la coincidencia del catálogo.
+- Se normalizan esos créditos para consulta y comparación, conservando etiquetas de versión significativas como Live. Se mantiene validación de artista y se prioriza duración compatible.
+- LRCLIB devolvió 503 reales por sobrecarga durante la prueba. Se añadieron reintentos breves y fuentes alternativas: NetEase con LRC sincronizado validado por título/artista/duración y lyrics.ovh como último recurso de texto sin tiempos exactos. La API informa la fuente real.
+- Al restaurar un proyecto con audio pero sin letras, el editor consulta automáticamente /api/analyze usando su audioId. No llama a /api/audio ni a /api/audio/separate. No sobreescribe letras existentes ni repone texto que el usuario acaba de eliminar; aborta al cambiar de proyecto o iniciar otra operación.
+- Verificado en el proyecto real del usuario: 45 líneas sincronizadas recuperadas automáticamente; audio existente conservado. Tras otra recarga permanecieron las 45 líneas y no se repitió POST /api/analyze. Red observada mediante CDP, sin leer ni exponer credenciales.
+- Pasan scripts/test-lyrics.mjs y scripts/test-lyrics-recovery.mjs, TypeScript y build Cloudflare. No se cambió ni ejecutó el modelo de separación.
+
 ## Actualización 20 octubre 2026: reparación del flujo de audio
 
 Esta sección prevalece sobre los handoffs históricos inferiores. Producción oficial: **https://akstudiovocal.com**. Código publicado en `github/main`; se trabajó en el worktree administrado `ak-studio-repair` para preservar el checkout original con cambios del usuario.
