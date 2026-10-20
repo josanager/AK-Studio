@@ -85,3 +85,19 @@ export async function POST(request: Request) {
       });
   });
 }
+
+export async function DELETE(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ error: "Sign in to cancel separation." }, { status: 401 });
+  const body = await request.json().catch(() => ({})) as { audioId?: string };
+  if (!body.audioId || !/^[0-9a-f-]{36}$/i.test(body.audioId) || !await findOwnedStem(body.audioId, "original", user.userId))
+    return Response.json({ error: "Audio not found." }, { status: 404 });
+  if (!canRunGpuSeparator()) return Response.json({ error: GPU_UNAVAILABLE_MESSAGE }, { status: 503 });
+  try {
+    const response = await fetch(`${env.SEPARATOR_PROCESSOR_URL!.replace(/\/$/, "")}/job/${body.audioId}/cancel`, {
+      method: "POST", headers: { authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}` }, signal: AbortSignal.timeout(25000),
+    });
+    if (!response.ok) throw new Error();
+    return Response.json({ status: "cancelled" });
+  } catch { return Response.json({ error: "The separator could not confirm cancellation. Please retry." }, { status: 502 }); }
+}

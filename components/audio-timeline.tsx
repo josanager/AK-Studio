@@ -20,10 +20,11 @@ export function useAudioTimeline(backing:string|null,vocal:string|null,backingMu
  return {clips,setClips,lanes,setLanes,add,audible,playback,addedClip,end:clips.reduce((m,c)=>Math.max(m,c.start+c.duration),0)};
 }
 
-export function AudioPlayback({clips,time,playing,muted,onTime,onEnded,onError}:{clips:(AudioClip&{muted:boolean})[];time:number;playing:boolean;muted:boolean;onTime:(s:number)=>void;onEnded:()=>void;onError:(message:string)=>void}){
+export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,onEnded,onError}:{clips:(AudioClip&{muted:boolean})[];time:number;seekRevision?:number;playing:boolean;muted:boolean;onTime:(s:number)=>void;onEnded:()=>void;onError:(message:string)=>void}){
  const elements=useRef(new Map<string,HTMLAudioElement>()),clock=useRef(time),playingRef=useRef(false);
  const pendingPlay=useRef(new Set<string>());
  const end=clips.reduce((m,c)=>Math.max(m,c.start+c.duration),0);
+ useEffect(()=>{clock.current=time},[seekRevision]);
  useEffect(()=>{if(Math.abs(time-clock.current)>.15||!playingRef.current)clock.current=time},[time]);
  useEffect(()=>{playingRef.current=playing;let frame=0,last=performance.now();function tick(now:number){if(playing)clock.current+=(now-last)/1000;last=now;const t=clock.current;for(const c of clips){const a=elements.current.get(c.id);if(!a)continue;const active=playing&&t>=c.start&&t<c.start+c.duration;a.muted=muted||c.muted;if(active){const local=t-c.start+(c.offset||0);if(a.readyState>=1&&!a.seeking&&Math.abs(a.currentTime-local)>.35)a.currentTime=local;if(a.paused&&!pendingPlay.current.has(c.id)){pendingPlay.current.add(c.id);void a.play().catch(e=>{if(e.name!=='AbortError'&&playingRef.current)onError(e.message||'Audio playback failed.')}).finally(()=>pendingPlay.current.delete(c.id))}}else{a.pause();if(a.readyState>=1&&!a.seeking&&t>=c.start&&t<c.start+c.duration&&Math.abs(a.currentTime-(t-c.start+(c.offset||0)))>.35)a.currentTime=t-c.start+(c.offset||0)}}if(playing){onTime(t);if(t>=end){onEnded();return}}frame=requestAnimationFrame(tick)}frame=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame);elements.current.forEach(a=>a.pause())}},[clips,playing,muted,end]);
  return <>{clips.map(c=><audio hidden key={c.id} src={c.source} preload="auto" playsInline ref={el=>{if(el)elements.current.set(c.id,el);else elements.current.delete(c.id)}}/>)}</>;

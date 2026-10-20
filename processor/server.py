@@ -11,6 +11,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+from warm_separator import WarmSeparator, JobCancelled
 
 ALLOWED_HOSTS = {"youtube.com", "www.youtube.com", "music.youtube.com", "youtu.be", "m.youtube.com"}
 MODEL = os.getenv("SEPARATOR_MODEL", "model_bs_roformer_ep_317_sdr_12.9755.ckpt")
@@ -19,6 +20,24 @@ TTL_SECONDS = 24 * 60 * 60
 JOB_LOCKS = [threading.Lock() for _ in range(64)]
 ACTIVE_JOBS = {}
 ACTIVE_LOCK = threading.Lock()
+JOB_CANCEL = {}
+SEPARATION_QUEUE = queue.Queue(maxsize=8)
+QUEUE_THREAD = None
+WARM_SEPARATOR = WarmSeparator(MODEL)
+
+
+def ensure_queue_worker():
+    global QUEUE_THREAD
+    if QUEUE_THREAD is None or not QUEUE_THREAD.is_alive():
+        def consume():
+            while True:
+                task = SEPARATION_QUEUE.get()
+                try:
+                    task()
+                finally:
+                    SEPARATION_QUEUE.task_done()
+        QUEUE_THREAD = threading.Thread(target=consume, daemon=True)
+        QUEUE_THREAD.start()
 
 
 def update_job_progress(job_id, value, message):
@@ -217,7 +236,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            return self.respond_json(200, {"ok": True, "model": MODEL})
+            with ACTIVE_LOCK:
+                active = sum(job.get("status") in ("processing", "queued", "cancelling") for job in ACTIVE_JOBS.values())
+            return self.respond_json(200, {"ok": True, "model": MODEL, "activeJobs": active,
+                                           "modelLoaded": WARM_SEPARATOR.loaded, "serviceVersion": "repair-20261020"})
         job = re.fullmatch(r"/job/([0-9a-f-]{36})", self.path)
         if job:
             with ACTIVE_LOCK:
@@ -238,6 +260,17 @@ class Handler(BaseHTTPRequestHandler):
             shutil.copyfileobj(audio, self.wfile, length=1024 * 1024)
 
     def do_POST(self):
+        cancel = re.fullmatch(r"/job/([0-9a-f-]{36})/cancel", self.path)
+        if cancel:
+            job_id = cancel.group(1)
+            with ACTIVE_LOCK:
+                event = JOB_CANCEL.get(job_id)
+                job = ACTIVE_JOBS.get(job_id)
+                if event and job and job.get("status") in ("queued", "processing", "cancelling"):
+                    event.set()
+                    job["status"] = "cancelled" if job["status"] == "queued" else "cancelling"
+                    job["message"] = "Cancelling separation…"
+            return self.respond_json(200, {"status": "cancelled"})
         if self.path not in ("/process", "/download"):
             return self.send_error(404)
         download_only = self.path == "/download"
@@ -252,23 +285,50 @@ class Handler(BaseHTTPRequestHandler):
         if not download_only:
             with ACTIVE_LOCK:
                 existing = ACTIVE_JOBS.get(job_id)
-                if existing:
+                if existing and existing.get("status") in ("processing", "queued", "ready", "cancelling"):
                     return self.respond_json(202, {"status": existing["status"], "jobId": job_id})
-                if any(job["status"] == "processing" for job in ACTIVE_JOBS.values()):
-                    return self.respond_error(429, "The separator is busy. Try again shortly.")
-                ACTIVE_JOBS[job_id] = {"status": "processing", "startedAt": time.time(), "progress": 8, "message": "Preparing stored audio…"}
+                if SEPARATION_QUEUE.full():
+                    return self.respond_error(429, "The separation queue is full. Try again shortly.")
+                cancelled = threading.Event()
+                JOB_CANCEL[job_id] = cancelled
+                ACTIVE_JOBS[job_id] = {"status": "queued", "startedAt": time.time(), "progress": 5, "message": "Waiting for the vocal separator…"}
             def work():
+                with ACTIVE_LOCK:
+                    if JOB_CANCEL.get(job_id) is not cancelled or cancelled.is_set():
+                        return
+                    ACTIVE_JOBS[job_id].update(status="processing", progress=8, message="Preparing stored audio…")
                 try:
                     manifest = self.perform_job(payload, False)
+                    if cancelled.is_set():
+                        raise JobCancelled("Separation cancelled.")
                     result = {"status": "ready", "manifest": manifest}
+                except JobCancelled:
+                    result = {"status": "cancelled"}
                 except Exception as error:
                     result = {"status": "error", "error": str(error)[:500]}
                 with ACTIVE_LOCK:
-                    ACTIVE_JOBS[job_id] = result
-            threading.Thread(target=work, daemon=True).start()
-            return self.respond_json(202, {"status": "processing", "jobId": job_id})
+                    if JOB_CANCEL.get(job_id) is cancelled:
+                        ACTIVE_JOBS[job_id] = result
+            try:
+                SEPARATION_QUEUE.put_nowait(work)
+            except queue.Full:
+                with ACTIVE_LOCK:
+                    ACTIVE_JOBS.pop(job_id, None)
+                    JOB_CANCEL.pop(job_id, None)
+                return self.respond_error(429, "The separation queue is full. Try again shortly.")
+            with ACTIVE_LOCK:
+                ensure_queue_worker()
+            return self.respond_json(202, {"status": "queued", "jobId": job_id})
+        with ACTIVE_LOCK:
+            ACTIVE_JOBS[job_id] = {"status": "processing", "startedAt": time.time()}
         self.begin_ndjson()
+        heartbeat_stop = threading.Event()
+        def heartbeat():
+            while not heartbeat_stop.wait(10):
+                self.send_ndjson({"status": "working", "message": "Preparing audio source…"})
+        threading.Thread(target=heartbeat, daemon=True).start()
         try:
+            self.send_ndjson({"status": "progress", "progress": 0})
             manifest = self.perform_job(
                 payload,
                 True,
@@ -278,7 +338,10 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as error:
             self.send_ndjson({"status": "error", "error": str(error)[:500]})
         finally:
+            heartbeat_stop.set()
             self.finish_ndjson()
+            with ACTIVE_LOCK:
+                ACTIVE_JOBS.pop(job_id, None)
 
     def perform_job(self, payload, download_only, on_download_progress=None):
         job_lock = None
@@ -304,7 +367,7 @@ class Handler(BaseHTTPRequestHandler):
             manifest_path = job_dir / ("download.json" if download_only else "process.json")
             if manifest_path.is_file():
                 cached = json.loads(manifest_path.read_text(encoding="utf-8"))
-                if cached.get("source") != (url or audio_url):
+                if cached.get("source", "").split("&token=")[0] != (url or audio_url).split("&token=")[0]:
                     raise ValueError("This job belongs to another source.")
                 return cached["manifest"]
             source = job_dir / "source.flac"
@@ -348,16 +411,18 @@ class Handler(BaseHTTPRequestHandler):
 
             separated = job_dir / "separated"
             separated.mkdir(exist_ok=True)
-            names = json.dumps({"Vocals": "lead", "Instrumental": "backing", "Lead Vocals": "lead", "Backing Vocals": "backing"})
             update_job_progress(job_id, 20, "Loading vocal separation model…")
-            run_separation(["audio-separator", str(source), "--model_filename", MODEL, "--output_format", "FLAC", "--output_dir", str(separated), "--model_file_dir", "/models", "--custom_output_names", names, "--mdxc_overlap", "2", "--mdxc_batch_size", "1"], 1800, job_id)
+            WARM_SEPARATOR.run(source, separated, JOB_CANCEL[job_id],
+                               lambda value, message: update_job_progress(job_id, value, message))
             update_job_progress(job_id, 88, "Preparing separated tracks…")
             lead, backing = find_stems(separated)
             shutil.move(source, job_dir / "original.flac")
             shutil.move(lead, job_dir / "lead.flac")
             shutil.move(backing, job_dir / "backing.flac")
             files = {stem: f"/file/{job_id}/{stem}" for stem in ("original", "backing", "lead")}
-            manifest = {**info, "bpm": detect_bpm(job_dir / "original.flac"), "model": "Mel-RoFormer Karaoke", "files": files}
+            # Tempo is already estimated in the editor. Re-running librosa here
+            # adds an unrelated full-song analysis after inference has finished.
+            manifest = {**info, "bpm": None, "model": "Mel-RoFormer Karaoke", "files": files}
             manifest_path.write_text(json.dumps({"source": url or audio_url, "manifest": manifest}), encoding="utf-8")
             return manifest
         except subprocess.TimeoutExpired:
@@ -376,6 +441,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def begin_ndjson(self):
         self._ndjson_open = True
+        self._ndjson_lock = threading.Lock()
         self.send_response(200)
         self.send_header("content-type", "application/x-ndjson; charset=utf-8")
         self.send_header("transfer-encoding", "chunked")
@@ -387,10 +453,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         payload = json.dumps(event, separators=(",", ":")).encode("utf-8") + b"\n"
         try:
-            self.wfile.write(f"{len(payload):X}\r\n".encode("ascii"))
-            self.wfile.write(payload)
-            self.wfile.write(b"\r\n")
-            self.wfile.flush()
+            with self._ndjson_lock:
+                if not self._ndjson_open:
+                    return
+                self.wfile.write(f"{len(payload):X}\r\n".encode("ascii"))
+                self.wfile.write(payload)
+                self.wfile.write(b"\r\n")
+                self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
             # Keep the backend download alive if the editor tab disconnects.
             self._ndjson_open = False
@@ -399,8 +468,10 @@ class Handler(BaseHTTPRequestHandler):
         if not getattr(self, "_ndjson_open", False):
             return
         try:
-            self.wfile.write(b"0\r\n\r\n")
-            self.wfile.flush()
+            with self._ndjson_lock:
+                self._ndjson_open = False
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
             pass
         self._ndjson_open = False

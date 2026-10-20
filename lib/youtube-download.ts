@@ -1,18 +1,18 @@
 /** Lightweight YouTube audio fetch for Cloudflare Workers (no yt-dlp binary). */
 import { downloadFetch } from "./download-http";
+import { readAudioEvents } from "./audio-events";
 
 const VISITOR_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 
 export type AudioDownloadResult = {
-  bytes: Uint8Array;
   contentType: string;
   extension: string;
   title?: string;
   artist?: string;
   duration?: number;
   source: "youtube" | "cobalt" | "processor";
-};
+} & ({ bytes: Uint8Array; body?: never } | { body: ReadableStream<Uint8Array>; bytes?: never });
 
 export type ProgressFn = (progress: number) => void | Promise<void>;
 
@@ -378,25 +378,42 @@ export async function downloadViaProcessor(
       sanitizeDownloadError(message.slice(0, 280) || "The audio processor could not download that song."),
     );
   }
-  if (onProgress) await onProgress(12);
-  const manifest = await response.json() as {
+  type ProcessorManifest = {
     files?: { original?: string };
     title?: string;
     artist?: string;
     duration?: number;
   };
+  let manifest: ProcessorManifest;
+  if ((response.headers.get("content-type") || "").includes("ndjson")) {
+    let reported = 4;
+    const ready = await readAudioEvents(response, async event => {
+      if (typeof event.progress !== "number") return;
+      const next = Math.max(reported, Math.min(35, 4 + event.progress * .31));
+      if (next > reported) { reported = next; await onProgress?.(next); }
+    });
+    if (!ready.manifest || typeof ready.manifest !== "object") throw new Error("The audio processor did not return a download result.");
+    manifest = ready.manifest as ProcessorManifest;
+  } else {
+    manifest = await response.json() as ProcessorManifest;
+  }
   const path = manifest.files?.original;
   if (!path) throw new Error("The audio processor did not return a downloadable file.");
 
-  if (!/^\/file\/[0-9a-f-]{36}\/original$/.test(path)) throw new Error("The processor returned an invalid audio file path.");
-  const audioFile = await readAudioFile(`${base}${path}`, {
+  if (path !== `/file/${jobId}/original`) throw new Error("The processor returned an invalid audio file path.");
+  const audioFile = await downloadFetch(`${base}${path}`, {
     headers: { authorization: `Bearer ${webhookSecret}` },
-  }, onProgress, { from: 12, to: 100 });
-  const contentType = audioFile.contentType || "audio/flac";
-  const bytes = audioFile.bytes;
-  if (!bytes.byteLength) throw new Error("The processor audio download was empty.");
+  }, 180_000);
+  const contentType = audioFile.headers.get("content-type") || "audio/flac";
+  if (!audioFile.ok || !audioFile.body || !contentType.startsWith("audio/")) {
+    await audioFile.body?.cancel();
+    throw new Error("The processor audio file could not be transferred. Please retry.");
+  }
+  await onProgress?.(90);
   return {
-    bytes,
+    // Preserve the fetch stream's known length; R2 stores it without buffering
+    // an entire lossless song twice inside a 128-MB Worker isolate.
+    body: audioFile.body,
     contentType,
     extension: extensionFor(contentType, "audio/flac"),
     title: manifest.title,

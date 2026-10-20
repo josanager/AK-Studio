@@ -3,7 +3,7 @@
   "name": "ak-studio-audio-processor",
   "main": "worker.ts",
   "compatibility_date": "2026-09-21",
-  "containers": [{ "class_name": "AudioProcessor", "image": "./Dockerfile.download", "instance_type": "basic", "max_instances": 5 }],
+  "containers": [{ "class_name": "AudioProcessor", "image": "registry.cloudflare.com/1293e708f0dd291ae3c8da2be92d0ff5/ak-studio-audio-processor-audioprocessor@sha256:1eb06273a5d3749e5c0f2cd694bd5ce74cc05e370a37c26e9e8cacb5b9cffe4c", "instance_type": "basic", "max_instances": 5 }],
   "durable_objects": { "bindings": [{ "name": "AUDIO_PROCESSOR", "class_name": "AudioProcessor" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AudioProcessor"] }],
   "observability": { "enabled": true }

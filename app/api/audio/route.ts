@@ -90,7 +90,7 @@ async function processFullMix(source: URL, usageId: string, userId: string, send
   const audioUrl = await storeStem(
     usageId,
     "original",
-    downloaded.bytes,
+    downloaded.body || downloaded.bytes,
     downloaded.contentType,
     downloaded.extension,
     userId,
