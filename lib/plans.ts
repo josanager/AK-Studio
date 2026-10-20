@@ -1,8 +1,9 @@
 import { env } from "cloudflare:workers";
 import type { AppUser } from "../app/auth";
+import {getPatreonSnapshot,type PatreonSnapshot} from "./patreon";
 
 export type PlanName = "free" | "pro";
-export type PlanSnapshot = { plan: PlanName; usedThisWeek: number; weeklyLimit: number | null; canCreate: boolean };
+export type PlanSnapshot = { plan: PlanName; usedThisWeek: number; weeklyLimit: number | null; canCreate: boolean; patreon?:PatreonSnapshot };
 
 export function currentWeekKey(now = new Date()) {
   const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -21,16 +22,10 @@ export async function ensureAppUser(user: AppUser) {
 
 export async function getPlanSnapshot(user: AppUser): Promise<PlanSnapshot> {
   await ensureAppUser(user);
-  const complimentaryEmail = env.COMPLIMENTARY_PRO_EMAIL?.trim().toLowerCase();
-  if (complimentaryEmail && user.email.trim().toLowerCase() === complimentaryEmail) {
-    return { plan: "pro", usedThisWeek: 0, weeklyLimit: null, canCreate: true };
-  }
-  const now = Math.floor(Date.now() / 1000);
-  const subscription = await env.DB.prepare("SELECT plan,status,current_period_end FROM subscriptions WHERE user_id=? LIMIT 1")
-    .bind(user.userId).first<{ plan: string; status: string; current_period_end: number | null }>();
-  const pro = subscription?.plan === "pro" && ["active", "trialing"].includes(subscription.status) && (!subscription.current_period_end || subscription.current_period_end > now);
+  const patreon=await getPatreonSnapshot(user.userId);
+  const pro=patreon.pro;
   const usage = await env.DB.prepare("SELECT COUNT(*) AS total FROM weekly_usage WHERE user_id=? AND week_key=? AND status IN ('processing','completed')")
     .bind(user.userId, currentWeekKey()).first<{ total: number }>();
   const usedThisWeek = Number(usage?.total || 0);
-  return { plan: pro ? "pro" : "free", usedThisWeek, weeklyLimit: pro ? null : 1, canCreate: pro || usedThisWeek < 1 };
+  return { plan: pro ? "pro" : "free", usedThisWeek, weeklyLimit: pro ? null : 1, canCreate: pro || usedThisWeek < 1,patreon };
 }

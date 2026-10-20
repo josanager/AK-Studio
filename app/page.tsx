@@ -368,9 +368,9 @@ export default async function Home() {
               <div>
                 <span>Pro</span>
                 <strong>
-                  $13<small>/mo</small>
+                  $15+<small>/mo on Patreon</small>
                 </strong>
-                <p>Publish often.</p>
+                <p>Included with your qualifying Patreon membership.</p>
               </div>
               <ul>
                 <li>

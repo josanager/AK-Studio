@@ -44,6 +44,15 @@ export const subscriptions = sqliteTable("subscriptions", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 }, table => [uniqueIndex("idx_subscriptions_user").on(table.userId)]);
 
+export const patreonMemberships = sqliteTable("patreon_memberships", {
+ userId:text("user_id").primaryKey().references(()=>authUser.id,{onDelete:"cascade"}),
+ patreonUserId:text("patreon_user_id").notNull().unique(),
+ status:text("status").notNull(),
+ amountCents:integer("amount_cents").notNull().default(0),
+ pro:integer("pro").notNull().default(0),
+ checkedAt:integer("checked_at").notNull().default(0),
+});
+
 export const weeklyUsage = sqliteTable("weekly_usage", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

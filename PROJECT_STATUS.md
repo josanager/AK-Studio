@@ -1,5 +1,17 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 20 octubre: Patreon sustituye nuevas altas de Stripe
+
+- OAuth Patreon API v2 registrado para AK Studio Vocal, callback oficial `/api/auth/callback/patreon`. Client ID/secret y webhook secret configurados como secretos de Cloudflare, nunca en Git. Campaña verificada `9673516`, Acapella Karaoke, moneda USD.
+- Pro depende exclusivamente de Patreon: `active_patron`, entitlement mensual >=1500 centavos USD y sin último cargo rechazado/reembolsado/fraudulento. No se consulta Stripe ni la antigua excepción por correo. El creador sin membresía calificadora sigue Free según esta regla.
+- Google se conserva para cuentas existentes. Patreon se vincula explícitamente desde Plans; no hay asociación implícita por correo. Nuevo acceso Continue with Patreon. Solo scopes identity e identity[email]: Patreon permite consultar la membresía a la propia campaña sin pedir las membresías a otros creadores.
+- Migración aditiva 0006 aplicada en D1. Verificación server-side mediante access token de la identidad vinculada; Better Auth renueva tokens. Caché máxima 5 minutos, refresh manual y notificaciones firmadas que invalidan caché sin conceder permisos desde payloads. Fallos de verificación no conceden Pro. Editor refresca plan por minuto visible y al recuperar foco, sin recargar proyectos.
+- Webhook v2 creado, ID 801689, destino `/api/patreon/webhook`, seis eventos members/pledges create/update/delete. Firma HMAC-MD5 de Patreon, comparación constante; replays solo invalidan caché.
+- Checkout de compatibilidad devuelve Patreon, no crea nuevas suscripciones Stripe. Webhook histórico Stripe y registros conservados, pero no otorgan Pro. **No se cancelaron suscripciones Stripe existentes ni se garantiza que dejen de renovarse**: requiere decisión explícita del propietario.
+- Pasan TypeScript/build y scripts/test-patreon.mjs: límite 1499/1500, estado, moneda/campaña equivocadas, identidad y enlace explícito. Prueba con 100 miembros reales de Patreon: 2 califican y 98 no; sin registrar datos personales. Endpoint producción rechaza firma falsa (401), acepta firma correcta (200) sin cambiar miembros reales.
+- Primera publicación Patreon: 42c9ee37-0a15-4ed4-b284-be241eb5f90b. Vinculación real del propietario llega al consentimiento oficial Permitir; pendiente confirmación específica de identidad/email para completarla. No afirmar todavía login OAuth completo ni Pro real en la sesión.
+- Audio, letras, modelo y proyecto actual no fueron regenerados ni modificados por esta integración. PRODUCT.md/DESIGN.md contienen decisiones históricas de Stripe/precio; esta sección prevalece.
+
 ## Actualización 20 octubre por la noche: letras de mashups y recuperación
 
 - Caso reproducido del usuario: La La Latch (Sam Smith/Disclosure/Naughty Boy Mashup), Pentatonix, enlace KeXGgoixuT4. Las búsquedas usaban los créditos entre paréntesis como título y rechazaban la coincidencia del catálogo.

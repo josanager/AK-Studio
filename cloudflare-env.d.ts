@@ -8,6 +8,9 @@ declare namespace Cloudflare {
     STRIPE_SECRET_KEY?: string;
     STRIPE_PRICE_PRO?: string;
     STRIPE_WEBHOOK_SECRET?: string;
+    PATREON_CLIENT_ID?: string;
+    PATREON_CLIENT_SECRET?: string;
+    PATREON_WEBHOOK_SECRET?: string;
     MASTER_ENCRYPTION_KEY?: string;
     PROCESSOR_WEBHOOK_SECRET?: string;
     GPU_PROCESSOR_URL?: string;
