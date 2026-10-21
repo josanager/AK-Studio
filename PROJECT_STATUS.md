@@ -1,5 +1,9 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 21 octubre: etiqueta de tonalidad
+
+- Retirado únicamente el prefijo visible `Est.` de la tonalidad en el canvas. Tonalidad, separador y BPM permanecen iguales. Tooltip conserva la aclaración de que el análisis es estimado. Sin cambios al motor de análisis, descarga, separación o exportación. TypeScript y build Cloudflare pasan.
+
 ## Actualización 20 octubre: excepción privada de propietario
 
 - Por petición explícita posterior, únicamente `josanager@gmail.com` obtiene Pro ilimitado sin Patreon. `lib/plans.ts` verifica el correo exacto y el ID de la identidad autenticada contra `auth_user`, con `email_verified=1`. No usa listas configurables, coincidencias parciales ni alias Gmail; no concede privilegios por un correo enviado por el cliente.
