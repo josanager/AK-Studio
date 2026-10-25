@@ -1,5 +1,13 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 25 octubre: Modal L4 probada con éxito
+
+- Tras el usuario verificar la tarjeta, confirmados $30 de créditos. Guardados y verificados spend limit $0 y usage limit $2 de créditos. No habilitar cargos ni aumentar límites sin petición.
+- Sonda GPU real L4 exitosa. Benchmark final app `ap-leuRRd8jvnzf3ecfrc9lHm` completada y detenida: 30 s sintéticos estéreo, mismo checkpoint/FP32/batch1/overlap2, separaciones 6.436 / 5.657 / 5.666 s, mediana caliente 5.662 s, carga 5.088 s, llamada remota completa con tres pasadas 43.643 s. Pico VRAM 1.666 GiB.
+- No son tiempos de una canción real ni un factor comparado con CPU Cloudflare. No se migró producción ni R2. Toda inferencia remota; SDK local solo envía código y recibe métricas.
+- Primer intento completó inferencia pero devolvió TorchVersion no serializable sin torch local; convertido a str y repetido con éxito. Resultados detallados en `processor/MODAL_RESULTS.md`, JSON bruto en `outputs/modal-benchmark.json` ignorado.
+- Apps efímeras, ninguna GPU permanente, sin volúmenes públicos ni endpoints. Credencial SDK temporal existente caduca una hora tras autorización inicial.
+
 ## Actualización 25 octubre: prueba Modal L4 preparada, pendiente de habilitación
 
 - Usuario pidió medir GPU sin gastar ni cambiar aún el procesamiento de producción.

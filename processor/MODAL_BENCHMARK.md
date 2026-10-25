@@ -1,5 +1,12 @@
 # Prueba aislada de GPU L4
 
+## Actualización tras verificación del usuario
+
+El usuario añadió el método de pago. Créditos $30 desbloqueados; se guardó
+spend limit $0 y usage limit $2. GPU L4 habilitada y benchmark completado.
+Resultados reales y límites de interpretación en [MODAL_RESULTS.md](MODAL_RESULTS.md).
+Los bloqueos siguientes son el historial previo, ya resuelto.
+
 ## Estado verificado el 25 de octubre de 2026
 
 - Workspace `josanager`, correo `josanager@gmail.com`, plan Starter.

@@ -103,7 +103,7 @@ def benchmark(seconds: int = 30):
             runs.append({"seconds": round(elapsed, 3),
                          "peak_vram_gib": round(torch.cuda.max_memory_allocated() / 2**30, 3)})
         return {"model": MODEL, "checkpoint_sha256": checkpoint_hash,
-                "audio_separator": "0.47.0", "torch": torch.__version__,
+                "audio_separator": "0.47.0", "torch": str(torch.__version__),
                 "gpu": torch.cuda.get_device_name(), "precision": "FP32",
                 "params": PARAMS, "fixture": "synthetic; not a song or a quality evaluation",
                 "fixture_sha256": source_hash, "audio_seconds": seconds,
