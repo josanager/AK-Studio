@@ -13,6 +13,9 @@
 - App efímera `ap-jyXQ0DHhLyQaY5gJC3U4rf` detenida. No benchmark real,
   no imagen grande construida y ningún resultado de velocidad todavía.
 - Para continuar, el usuario debe añadir un método de pago en Modal.
+  El diálogo oficial indica un cargo de verificación de $0.50 reembolsable;
+  no cumple una condición estricta de cero desembolso inicial. Se dejó
+  abierto ese aviso, sin pasar al formulario de tarjeta ni realizar cargos.
   Después verificar créditos desbloqueados y guardar spend limit $0
   antes de ejecutar. No asumir que añadir tarjeta garantiza cero cargos.
 

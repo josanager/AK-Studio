@@ -8,6 +8,7 @@
 - Sonda mínima L4 rechazada por Modal: `Please add a payment method to use L4 GPU functions.` App efímera detenida. No inferencia ni medición real de velocidad; no afirmar aceleración ni coste por canción.
 - `processor/modal_benchmark.py` prepara mismo checkpoint/audio-separator 0.47.0/FP32/batch1/overlap2 en CUDA L4, una instancia efímera, tres pasadas, hashes y métricas, entrada sintética remota. Compila e importa localmente sin inferencia. No endpoint público, R2 secrets ni conexión a producción.
 - Detalles y próximos pasos en `processor/MODAL_BENCHMARK.md`. Tras añadir método de pago, verificar créditos y fijar spend limit $0 antes de correr. No gastar por autorización implícita.
+- El aviso de añadir método de pago exige una verificación de $0.50 reembolsable. No satisface cero desembolso inicial: no se avanzó al formulario ni se aceptaron cargos. Se dejó el aviso visible al usuario.
 
 ## Actualización 21 octubre: etiqueta de tonalidad
 
