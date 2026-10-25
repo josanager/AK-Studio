@@ -1,5 +1,14 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 25 octubre: prueba Modal L4 preparada, pendiente de habilitación
+
+- Usuario pidió medir GPU sin gastar ni cambiar aún el procesamiento de producción.
+- Cuenta Modal `josanager@gmail.com` iniciada por el usuario, onboarding AK Studio Vocal completado. Starter tiene $1 desbloqueado y límite $1; el resto de los $30/mes requiere método de pago. No se añadió tarjeta ni contrató plan.
+- SDK 1.6.2 instalado solo en `/tmp/ak-modal-benchmark-venv`. Permiso explícito del usuario para un token temporal de una hora en perfil `ak-studio-benchmark`; credenciales fuera del repositorio.
+- Sonda mínima L4 rechazada por Modal: `Please add a payment method to use L4 GPU functions.` App efímera detenida. No inferencia ni medición real de velocidad; no afirmar aceleración ni coste por canción.
+- `processor/modal_benchmark.py` prepara mismo checkpoint/audio-separator 0.47.0/FP32/batch1/overlap2 en CUDA L4, una instancia efímera, tres pasadas, hashes y métricas, entrada sintética remota. Compila e importa localmente sin inferencia. No endpoint público, R2 secrets ni conexión a producción.
+- Detalles y próximos pasos en `processor/MODAL_BENCHMARK.md`. Tras añadir método de pago, verificar créditos y fijar spend limit $0 antes de correr. No gastar por autorización implícita.
+
 ## Actualización 21 octubre: etiqueta de tonalidad
 
 - Retirado únicamente el prefijo visible `Est.` de la tonalidad en el canvas. Tonalidad, separador y BPM permanecen iguales. Tooltip conserva la aclaración de que el análisis es estimado. Sin cambios al motor de análisis, descarga, separación o exportación. TypeScript y build Cloudflare pasan.
