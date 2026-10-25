@@ -1,5 +1,13 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 25 octubre: canción real y espera de arranque GPU
+
+- Probada canción CC-BY 3.0 `Let's Go Fishin'` de Karissa Hobbs, ejemplo librosa fishin HQ estéreo 44.1k, duración 132.989 s, descargada solo en Modal. Mismo checkpoint/FP32/batch1/overlap2.
+- Separación completa: 25.648 s primera pasada / 25.034 s caliente. Fragmentos reales: 30 s → 5.719 s; 60 s → 10.957 s. App `ap-bt8fkkNgxUnO3RalFyxDwt` completada.
+- Dos trabajos únicos en apps nuevas: 128.625 s y 150.962 s de extremo a extremo del benchmark; dentro de la función 40.570/40.048 s. Espera fuera de la función 88.055/110.914 s. No atribuir causa exacta sin trazas; no prometer 25 s totales para AK Studio.
+- Apps `ap-I4pyOVkhdbzWMWF55ylRjk` y `ap-PFw6li8jYkR6sr2lO4q8gB` completadas/detenidas. Sin GPU permanente. Cero cargos adicionales permitido, cap consumo créditos $2 conservado. No cambios de producción ni R2.
+- Dos FLAC estéreo no silenciosos/finitos y de duración correcta en cada caso. No evaluación auditiva subjetiva. Detalles en `processor/MODAL_MUSIC_RESULTS.md`, JSON brutos ignorados bajo outputs.
+
 ## Actualización 25 octubre: Modal L4 probada con éxito
 
 - Tras el usuario verificar la tarjeta, confirmados $30 de créditos. Guardados y verificados spend limit $0 y usage limit $2 de créditos. No habilitar cargos ni aumentar límites sin petición.

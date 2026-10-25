@@ -5,6 +5,8 @@
 El usuario añadió el método de pago. Créditos $30 desbloqueados; se guardó
 spend limit $0 y usage limit $2. GPU L4 habilitada y benchmark completado.
 Resultados reales y límites de interpretación en [MODAL_RESULTS.md](MODAL_RESULTS.md).
+Pruebas posteriores con canción real completa y dos arranques independientes:
+[MODAL_MUSIC_RESULTS.md](MODAL_MUSIC_RESULTS.md).
 Los bloqueos siguientes son el historial previo, ya resuelto.
 
 ## Estado verificado el 25 de octubre de 2026
