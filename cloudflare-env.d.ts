@@ -16,6 +16,9 @@ declare namespace Cloudflare {
     GPU_PROCESSOR_URL?: string;
     SEPARATOR_PROCESSOR_URL?: string;
     SEPARATOR_WEBHOOK_SECRET?: string;
+    MODAL_SEPARATOR_URL?: string;
+    MODAL_SHARED_SECRET?: string;
+    SEPARATOR_PROVIDER?: string;
     COBALT_API_URL?: string;
     COBALT_API_KEY?: string;
     BETTER_AUTH_URL: string;

@@ -1,5 +1,16 @@
 # AK Studio — estado y guía de continuidad
 
+## Actualización 26 octubre: separación migrada a GPU Modal en producción
+
+- Modal app `ak-studio-separator-gpu` desplegada, endpoint autenticado `https://josanager--ak-studio-separator-gpu-api.us-east.modal.run`. Min0/max1 L4, FP32/mismo checkpoint/audio-separator 0.47.0/batch1/overlap2, modelo reutilizado hasta 60 s de inactividad. API CPU ligera y Dicts persistentes; no audio en volúmenes Modal.
+- Cloudflare publicado en versión **1f8999c1-2c1a-4e92-b360-f41265bc262d**. Verificados por API los bindings activos `SEPARATOR_PROVIDER=modal` y URL, y presencia del secreto cifrado `MODAL_SHARED_SECRET`. Web/endpoints/dominio/Google-Patreon/planes permanecen; no cambió ningún componente UI.
+- R2 original → capacidades HMAC por archivo/generación/usuario/operación de una hora → Modal → dos FLAC staged en R2 → promoción solo de pareja completa. GET/PUT sin firma devuelven401; solicitud de separación sin sesión401. Original se conserva. Prioridad FLAC evita reutilizar mezcla vieja en otro formato.
+- Cola acotada8, solicitudes idempotentes, reintentos explícitos por generación, cancelación nativa que termina contenedor, recuperación tras reinicio/desconexión. Progreso real asíncrono fuera de la inferencia; actualizaciones tardías no pisan estados terminales. Sin fallback CPU automático.
+- Pruebas reales sobre canción CC-BY de132.989 s: flujo completo inicial128.373 s; cancelación+dedup real7.752 s; reintento del cancelado162.456 s; pasada final tras desacoplar progreso77.888 s completos, inferencia28.044 s. No son garantías ni evaluación auditiva.
+- Pasan tests nuevos de API/seguridad/cancel/retry/capacidades/promoción, tests existentes de orquestación/caché/timeline, TypeScript/build. Worker temporal `ak-studio-migration-check` eliminado y sus15 objetos de prueba borrados; proyecto del usuario solo inspeccionado, sin recarga ni cambios.
+- Modal: gasto neto máximo$0 conservado; límite de uso$30 para créditos mensuales, sin cobros adicionales ni GPU permanente. R2 caduca todos los objetos al día, regla verificada. Viejo separadorCPU queda desplegado para rollback y duerme sin peticiones; descargadorCloudflare sigue en uso.
+- Detalles operativos/rollback en `processor/MODAL_DEPLOYMENT.md`. Alcance: separaciónGPU; exportación de vídeo, reproducción y otras tareas existentes del editor aún son del navegador. No afirmar que todo el proyecto usa cero recursos locales.
+
 ## Actualización 25 octubre: canción real y espera de arranque GPU
 
 - Probada canción CC-BY 3.0 `Let's Go Fishin'` de Karissa Hobbs, ejemplo librosa fishin HQ estéreo 44.1k, duración 132.989 s, descargada solo en Modal. Mismo checkpoint/FP32/batch1/overlap2.

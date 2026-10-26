@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     findOwnedStem(audioId, "backing", user.userId),
     findOwnedStem(audioId, "lead", user.userId),
   ]);
-  if (backing && lead) {
+  if (backing && lead && backing.meta.mode === "stems" && lead.meta.mode === "stems" && backing.meta.generation === lead.meta.generation) {
     return Response.json({ status: "ready", progress: 100, id: audioId, mode: "stems",
       audioUrl: `/api/audio/${audioId}?stem=original`, backingUrl: `/api/audio/${audioId}?stem=backing`,
       vocalUrl: `/api/audio/${audioId}?stem=lead`, model: backing.meta.model, expiresIn: 86400 });
@@ -60,6 +60,10 @@ export async function POST(request: Request) {
 
   if (!canRunGpuSeparator()) {
     return Response.json({ error: GPU_UNAVAILABLE_MESSAGE, code: "GPU_UNAVAILABLE" }, { status: 503 });
+  }
+
+  if (env.SEPARATOR_PROVIDER === "modal") {
+    return ndjsonResponse(send => processWithGpu({ usageId: audioId, jobId: audioId, userId: user.userId, send, skipOriginal: true }));
   }
 
   const youtube = sourceURL(body.url || "");
@@ -94,8 +98,10 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "Audio not found." }, { status: 404 });
   if (!canRunGpuSeparator()) return Response.json({ error: GPU_UNAVAILABLE_MESSAGE }, { status: 503 });
   try {
-    const response = await fetch(`${env.SEPARATOR_PROCESSOR_URL!.replace(/\/$/, "")}/job/${body.audioId}/cancel`, {
-      method: "POST", headers: { authorization: `Bearer ${env.SEPARATOR_WEBHOOK_SECRET}` }, signal: AbortSignal.timeout(25000),
+    const base = env.SEPARATOR_PROVIDER === "modal" ? env.MODAL_SEPARATOR_URL : env.SEPARATOR_PROCESSOR_URL;
+    const secret = env.SEPARATOR_PROVIDER === "modal" ? env.MODAL_SHARED_SECRET : env.SEPARATOR_WEBHOOK_SECRET;
+    const response = await fetch(`${base!.replace(/\/$/, "")}/job/${body.audioId}/cancel`, {
+      method: "POST", headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(60000),
     });
     if (!response.ok) throw new Error();
     return Response.json({ status: "cancelled" });

@@ -13,7 +13,9 @@
   "vars": {
     "COMPLIMENTARY_PRO_EMAIL": "josanager@gmail.com",
     "BETTER_AUTH_URL": "https://akstudiovocal.com",
-    "SITE_URL": "https://akstudiovocal.com"
+    "SITE_URL": "https://akstudiovocal.com",
+    "MODAL_SEPARATOR_URL": "https://josanager--ak-studio-separator-gpu-api.us-east.modal.run",
+    "SEPARATOR_PROVIDER": "modal"
   },
   "assets": {
     "binding": "ASSETS",

@@ -3,31 +3,34 @@
 ## Production shape
 
 - **Worker + static assets** serves the product UI and lightweight API endpoints.
-- **D1 (`DB`)** stores users, subscriptions, encrypted provider credentials, font collections, and short-lived job metadata. It does not store sessions, audio, or video.
-- **Queue (`PROCESSING_QUEUE`)** decouples the web request from long-running media work.
+- **D1 (`DB`)** stores accounts, authentication sessions, Patreon links/verification, usage and font collections. Audio is not stored in D1.
+- **Queue (`PROCESSING_QUEUE`)** remains bound; vocal separation uses Modal's persistent background jobs.
 - **R2 (`TEMP_BUCKET`)** holds temporary inputs and outputs. The bucket lifecycle deletes objects after one day.
-- **External GPU processor** performs download, source separation, transcription/alignment, BPM detection, and rendering. Workers orchestrate this workload; they do not run the ML models.
-- **Stripe** handles subscriptions. Stripe webhook processing and entitlement enforcement must be connected before billing is considered production-ready.
-- **Consumer authentication provider** must replace the OpenAI Sites request headers before the public Cloudflare deployment.
+- **Modal L4** performs lead/backing separation with the existing Mel-RoFormer checkpoint. It reads and writes single-file signed R2 transfers. See [deployment and rollback](processor/MODAL_DEPLOYMENT.md).
+- **Cloudflare download containers** still fetch YouTube audio. The old CPU separator is retained, idle, for rollback; production selects `SEPARATOR_PROVIDER=modal`.
+- **Browser** still handles editing, playback, waveforms and the existing video export. This migration does not claim zero local memory or cloud video rendering.
+- **Patreon** grants Pro for qualifying active memberships; the verified owner exception remains. Historical Stripe compatibility endpoints/records remain but do not grant Pro. Existing Stripe subscriptions were not canceled by this migration.
+- **Better Auth** handles Google/Patreon sign-in on `https://akstudiovocal.com`, with the app's own error screen.
 
 ## Deploy
 
-Use Node 22 or newer.
+Use Node 24 and the project's pinned Wrangler 4.92 for the web deployment.
 
 ```bash
 npm ci
 npm run build:cloudflare
 npx wrangler d1 migrations apply ak-studio --remote --config wrangler.jsonc
-npx wrangler deploy --config dist/server/wrangler.cloudflare.json
+node node_modules/wrangler/bin/wrangler.js deploy --config dist/server/wrangler.cloudflare.json
 ```
 
 Production secrets belong in Cloudflare, never in Git:
 
-```bash
-npx wrangler secret put MASTER_ENCRYPTION_KEY --config dist/server/wrangler.cloudflare.json
-npx wrangler secret put STRIPE_SECRET_KEY --config dist/server/wrangler.cloudflare.json
-npx wrangler secret put PROCESSOR_WEBHOOK_SECRET --config dist/server/wrangler.cloudflare.json
-```
+Preserve existing authentication, Patreon and processor secrets. Modal adds
+`MODAL_SHARED_SECRET`, identical to the managed Modal secret
+`ak-studio-cloudflare`. Public provider selection and URL are in
+`wrangler.jsonc`. No bucket-wide credentials are sent to Modal. Dashboard
+login sessions and the temporary local SDK token do not keep the deployed
+service running; the deployment is independent of those sessions.
 
 ## CI/CD recommendation
 
@@ -45,10 +48,14 @@ Deploy command:
 npx wrangler deploy --config dist/server/wrangler.cloudflare.json
 ```
 
-## Remaining production gates
+## GPU operation
 
-1. Replace `app/chatgpt-auth.ts` with the selected public authentication provider.
-2. Add Stripe product/price, secrets, webhook verification, and entitlement checks.
-3. Select and connect a GPU processing provider. The UI must not claim that stems or rendered audio are ready until this exists.
-4. Add a custom domain after the intended hostname is provided.
-5. Add rate limiting, job quotas, error tracking, and spend alerts before opening registration.
+Modal scales from zero to at most one L4, retaining a loaded model for up to
+60 seconds after activity. Cold starts remain variable. Cancellation stops
+the GPU invocation; retries are explicit and use isolated output generations.
+The service rejects unauthenticated control requests and arbitrary source URLs.
+
+As configured on 26 October 2026, Modal has a $30 usage cap and $0 net spend
+limit. Processing is bounded by available free credits. Do not enable paid
+overage, permanent GPU capacity or larger limits without the owner's request.
+R2's one-day lifecycle applies to staged and final audio alike.

@@ -3,7 +3,7 @@ import { sanitizeDownloadError } from "./youtube-download";
 
 export type NdjsonEvent = Record<string, unknown>;
 
-const STEM_EXTS = ["m4a", "mp4", "webm", "mp3", "ogg", "flac"] as const;
+const STEM_EXTS = ["flac", "m4a", "mp4", "webm", "mp3", "ogg"] as const;
 
 export function ndjsonResponse(run: (send: (event: NdjsonEvent) => Promise<void>) => Promise<void>) {
   const encoder = new TextEncoder();
@@ -75,6 +75,8 @@ export async function findOwnedStem(audioId: string, stem: string, userId: strin
     const object = await env.TEMP_BUCKET.head(`audio/${audioId}-${stem}.${ext}`);
     if (!object) continue;
     if (object.customMetadata?.userId !== userId) return null;
+    const created = Date.parse(object.customMetadata?.createdAt || "");
+    if (Number.isFinite(created) && Date.now() - created > 86400000) return null;
     return { ext, meta: object.customMetadata || {} };
   }
   return null;
@@ -127,6 +129,7 @@ export const GPU_UNAVAILABLE_MESSAGE =
   "The vocal separation service is not configured. Full mix still plays.";
 
 export function canRunGpuSeparator() {
+  if (env.SEPARATOR_PROVIDER === "modal") return Boolean(env.MODAL_SEPARATOR_URL && env.MODAL_SHARED_SECRET);
   return Boolean(env.SEPARATOR_PROCESSOR_URL && env.SEPARATOR_WEBHOOK_SECRET);
 }
 
@@ -173,6 +176,9 @@ export async function processWithGpu({
   send,
   skipOriginal = false,
 }: ProcessGpuOpts) {
+  if (env.SEPARATOR_PROVIDER === "modal") {
+    return (await import("./modal-separator")).processWithModal({ usageId, userId, send });
+  }
   if (!env.SEPARATOR_PROCESSOR_URL || !env.SEPARATOR_WEBHOOK_SECRET) {
     throw new Error(GPU_UNAVAILABLE_MESSAGE);
   }

@@ -3,7 +3,7 @@ import { getCurrentUser } from "../../../auth";
 import { verifyStemAccessToken } from "../../../../lib/audio-stems";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const STEM_EXTS = ["m4a", "mp4", "webm", "mp3", "ogg", "flac"] as const;
+const STEM_EXTS = ["flac", "m4a", "mp4", "webm", "mp3", "ogg"] as const;
 
 async function getStemObject(id: string, stem: string, range?: { offset: number; length?: number }) {
   for (const ext of STEM_EXTS) {
