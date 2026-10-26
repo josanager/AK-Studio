@@ -1,0 +1,187 @@
+/* Mobile editing: preview + timeline stay visible; secondary tools open on demand. */
+.mobile-editor-tools,.ak-shell .mobile-panel-close,.mobile-panel-backdrop,.mobile-audio-lanes,.mobile-source-toggle{display:none}
+.studio-audio-actions{display:grid;gap:8px;padding-top:16px;margin-top:16px;border-top:1px solid var(--line)}
+.studio-audio-actions button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:8px;border:1px solid var(--line-dark);border-radius:4px;background:#fff;font-size:13px}
+.studio-audio-actions .audio-separate-action{background:var(--ink);color:#fff;border-color:var(--ink)}
+.studio-audio-actions button:disabled{opacity:.45;cursor:default}
+.studio-audio-actions svg{width:17px;height:17px;flex-shrink:0}
+
+@media(max-width:720px), (max-width:1000px) and (max-height:500px){
+ .ak-shell{--mobile-nav-height:64px;--mobile-panel-height:min(72dvh,620px);display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:56px auto minmax(0,1fr) minmax(246px,32dvh) calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));height:100dvh;min-height:0;width:100%;font-size:15px}
+ .ak-shell button{touch-action:manipulation}
+ .ak-shell button:focus-visible,.ak-shell a:focus-visible,.ak-shell input:focus-visible,.ak-shell select:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+ .ak-shell .ak-topbar{grid-row:1;grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;height:56px;padding:0 max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left))}
+ .ak-shell .ak-wordmark{min-height:44px;gap:6px}
+ .ak-shell .ak-wordmark>span{width:32px;height:32px}
+ .ak-shell .ak-wordmark b{display:block;font-size:14px}
+ .ak-shell .project-ident{display:flex;flex-direction:column;min-width:0;gap:2px}
+ .ak-shell .project-ident strong{font-size:14px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .ak-shell .project-ident span{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .ak-shell .edit-history{display:none}
+ .ak-shell .header-actions{gap:4px}
+ .ak-shell .header-actions>.icon-button{display:none}
+ .ak-shell .profile-menu-trigger,.ak-shell .render-button{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;justify-content:center}
+ .ak-shell .render-button>svg:last-child,.ak-shell .render-button .btn-label{display:none}
+ .ak-shell .header-actions svg{width:21px;height:21px}
+ .ak-shell .profile-menu-trigger>span,.ak-shell .profile-menu-chevron{display:none}
+ .ak-shell .profile-popover,.ak-shell .export-menu-panel{position:fixed;top:58px;right:10px;left:auto;width:min(300px,calc(100vw - 20px));max-height:calc(100dvh - 80px);overflow:auto;font-size:16px;z-index:70}
+ .ak-shell .profile-popover a,.ak-shell .profile-popover button,.ak-shell .export-menu-panel button{min-height:48px;font-size:16px}
+ .ak-shell .source-bar{grid-row:2;grid-column:1/-1;padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));border:0;min-height:0}
+ .ak-shell .source-bar-content{grid-template-columns:minmax(0,1fr) 94px;grid-auto-rows:auto;gap:6px 8px;padding:0;min-height:44px}
+ .ak-shell .source-bar-content>svg{display:none}
+ .ak-shell .source-bar-content input{grid-row:1;grid-column:1;font-size:16px;line-height:1.4;height:44px;padding:0 8px;border:1px solid var(--line-dark);border-radius:4px;background:#fff;min-width:0;width:100%}
+ .ak-shell .source-bar-content input::placeholder{color:#666;opacity:1}
+ .ak-shell .source-bar-content>button{grid-row:1;grid-column:2;display:flex;align-items:center;justify-content:center;width:94px;min-width:94px;min-height:44px;padding:0 8px;gap:6px;font-size:14px}
+ .ak-shell .source-bar-content>button .btn-label{position:static;display:inline;width:auto;height:auto;margin:0;padding:0;clip:auto;overflow:visible;font-size:14px;white-space:nowrap}
+ .ak-shell .source-bar-content>button svg{width:18px;height:18px}
+ .ak-shell .source-status{grid-column:1/-1;grid-row:2;position:static;min-height:0;max-width:100%;height:auto;border:0;padding:2px 0 0;font-size:13px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;color:#555}
+ .ak-shell .source-status:empty{display:none}
+ .ak-shell .source-status.success{color:#35623e}
+ .ak-shell .source-status.error{color:#ad2525}
+ .ak-shell .source-bar-fill{background:#dadad4}
+ .ak-shell .source-bar.is-progress .source-bar-fill{background:#dadad4}
+ .ak-shell .source-bar-content .limit-link{grid-column:2;grid-row:1;min-height:44px;width:94px;font-size:14px;padding:8px;display:flex;align-items:center;justify-content:center}
+ .ak-shell .source-bar-content .limit-link:after{display:none}
+ .ak-shell .editor-grid{grid-row:3;grid-column:1;display:block;position:relative;min-height:0;min-width:0;overflow:hidden}
+ .ak-shell .preview-column{height:100%;display:grid;grid-template-rows:44px minmax(0,1fr) 56px;min-height:0;width:100%;grid-column:auto;grid-row:auto}
+ .ak-shell .preview-tools{height:44px;padding:0 8px;gap:8px}
+ .ak-shell .preview-tools button{min-width:44px;width:auto;height:44px;min-height:44px;padding:0 8px;gap:6px}
+ .ak-shell .preview-tools>button .btn-label{position:static;width:auto;height:auto;clip:auto;margin:0;font-size:13px}
+ .ak-shell .preview-tools-right{gap:0;min-width:0}
+ .ak-shell .preview-tools-right>button[aria-label="Center text"]{display:none}
+ .ak-shell .preview-tools svg{width:20px;height:20px}
+ .ak-shell .quality-fps-chip{font-size:13px}
+ .ak-shell .quality-fps-panel{position:fixed;z-index:75;right:12px;top:120px;max-width:calc(100vw - 24px);width:264px;font-size:16px}
+ .ak-shell .quality-fps-panel button{min-width:64px;min-height:44px}
+ .ak-shell .stage-wrap{min-height:0;min-width:0;padding:0;background:#c8c8c2}
+ .ak-shell .karaoke-stage{container-type:inline-size}
+ .ak-shell .lyric-canvas p{font-size:1em;max-width:100%;overflow-wrap:normal}
+ .ak-shell .transport{height:56px;display:flex;gap:8px;padding:4px 10px}
+ .ak-shell .transport-main,.ak-shell .transport>.icon-button{display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px}
+ .ak-shell .transport-main svg{width:22px;height:22px}
+ .ak-shell .transport time{font-size:12px;min-width:30px;font-variant-numeric:tabular-nums}
+ .ak-shell .transport .scrub{height:44px;flex:1;min-width:40px;touch-action:none}
+ .ak-shell .transport .scrub>button{min-height:20px;height:20px;width:20px;top:12px}
+ .ak-shell .timeline-shell{grid-row:4;grid-column:1;min-height:0;display:grid;grid-template-rows:88px minmax(0,1fr);overflow:hidden}
+ .ak-shell .timeline-toolbar{height:auto;min-height:88px;display:flex;align-content:start;flex-wrap:wrap;gap:0 4px;padding:0 8px;border-top:1px solid var(--line)}
+ .ak-shell .timeline-toolbar>div:first-child{display:flex;align-items:center;flex:1;min-width:0;height:44px;overflow-x:auto;gap:0;scrollbar-width:none}
+ .ak-shell .timeline-toolbar button{min-height:44px;height:44px;width:44px;min-width:44px;padding:0;display:grid;place-items:center;border-radius:4px;flex-shrink:0}
+ .ak-shell .timeline-toolbar button svg{width:20px;height:20px}
+ .ak-shell .timeline-toolbar .tempo{height:44px;min-width:52px;gap:4px;font-size:13px}
+ .ak-shell .timeline-toolbar .tempo svg{width:20px;height:20px}
+ .ak-shell .timeline-toolbar>div:last-child{height:44px;flex:1 0 100%;display:flex;align-items:center;gap:8px}
+ .ak-shell .timeline-toolbar input[aria-label="Timeline zoom"]{flex:1;min-width:60px;width:auto;height:44px;margin:0;accent-color:#111;touch-action:pan-y}
+ .ak-shell .timeline-body{grid-template-columns:100px minmax(0,1fr);min-height:224px}
+ .ak-shell .timeline-vertical-scroll{overscroll-behavior:contain;scrollbar-gutter:auto;touch-action:pan-x pan-y}
+ .ak-shell .timeline-scroll{touch-action:pan-x pan-y;scrollbar-width:thin}
+ .ak-shell .track-canvas{touch-action:pan-x pan-y}
+ .ak-shell .time-ruler{touch-action:none;font-size:11px}
+ .ak-shell .playhead{touch-action:none}
+ .ak-shell .playhead:after{content:"";position:absolute;inset:0 -13px;pointer-events:auto}
+ .ak-shell .track-heads>div:first-child{grid-template-columns:1fr 44px;padding:0 4px}
+ .ak-shell .track-heads>div:first-child button{width:44px;min-width:44px;min-height:44px;padding:0}
+ .ak-shell .track-heads .audio-lane-head{display:grid;grid-template-columns:minmax(0,1fr) 44px;grid-template-rows:1fr;padding:0 4px;gap:0}
+ .ak-shell .audio-lane-head>span{grid-column:auto;text-align:left;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .ak-shell .audio-lane-head>button:not(:last-child){display:none}
+ .ak-shell .audio-lane-head>button:last-child{height:44px;width:44px;min-height:44px;padding:0;display:grid;place-items:center}
+ .ak-shell .audio-lane-head button svg{width:20px;height:20px}
+ .ak-shell .audio-clip{touch-action:pan-x pan-y}
+ .ak-shell .audio-clip.selected{touch-action:none}
+ .ak-shell .audio-clip>button{display:none}
+ .ak-shell .audio-clip>span:first-child{font-size:12px}
+ .ak-shell .audio-trim-handle{width:22px;touch-action:none}
+ .ak-shell .audio-clip:not(.selected) .audio-trim-handle{pointer-events:none;opacity:0}
+ .ak-shell .lyric-track>button{touch-action:pan-x pan-y}
+ .ak-shell .lyric-track>button.selected{touch-action:none}
+ .ak-shell .lyric-track>button:not(.selected) .lyric-resize-handle{pointer-events:none;opacity:0}
+ .ak-shell .lyric-resize-handle{width:20px;touch-action:none}
+ .ak-shell .mobile-editor-tools{grid-row:5;grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));height:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));padding:4px max(8px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:#fff;border-top:1px solid var(--line);z-index:30}
+ .ak-shell .mobile-editor-tools button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:44px;min-height:52px;padding:4px;border:0;background:transparent;color:#333;font-size:13px;font-weight:600}
+ .ak-shell .mobile-editor-tools svg{width:22px;height:22px;stroke-width:1.7}
+ .ak-shell .mobile-editor-tools button:active{background:#ecece8}
+ .ak-shell .lyrics-panel,.ak-shell .inspector{display:none}
+ .ak-shell.mobile-tool-lyrics .lyrics-panel,.ak-shell.mobile-tool-saved .lyrics-panel,.ak-shell.mobile-tool-audio .inspector,.ak-shell.mobile-tool-style .inspector{display:block;position:fixed;inset:auto 0 0;z-index:100;width:100%;height:var(--mobile-panel-height);max-height:calc(100dvh - 56px);overflow-y:auto;overscroll-behavior:contain;border:0;border-top:1px solid var(--line-dark);border-radius:8px 8px 0 0;background:#fff;padding:0 16px calc(20px + env(safe-area-inset-bottom));box-shadow:none;scrollbar-width:thin}
+ .ak-shell .mobile-panel-backdrop{display:block;position:fixed;inset:0;z-index:90;background:#0005}
+ .ak-shell .mobile-panel-close{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0;margin-left:auto}
+ .ak-shell .lyrics-panel .panel-title,.ak-shell .inspector .panel-title{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;height:60px;margin:0 -16px;padding:0 12px;background:#fff;border-bottom:1px solid var(--line)}
+ .ak-shell .panel-title h2{font-size:18px;font-weight:600}
+ .ak-shell .panel-title button{min-height:44px;min-width:44px}
+ .ak-shell .inspector .panel-title h2{flex:1}
+ .ak-shell .inspector .panel-title>button[aria-label="Close settings"]{order:3}
+ .ak-shell .panel-title svg{width:21px;height:21px}
+ .ak-shell .panel-tabs{gap:4px;flex:1}
+ .ak-shell .panel-tabs button{font-size:16px;padding:0 12px;border-radius:4px}
+ .ak-shell .lyrics-list{display:flex;flex-direction:column;gap:0;overflow:visible;padding:8px 0;margin:0}
+ .ak-shell .lyrics-list>div{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;min-width:0;width:100%;min-height:56px;padding:10px 8px;margin:0;border:0;border-bottom:1px solid var(--line);border-radius:0;flex:none;align-items:start}
+ .ak-shell .lyrics-list>div.selected{background:#f0f0ed}
+ .ak-shell .lyrics-list time{font-size:12px;line-height:24px;color:#555}
+ .ak-shell .lyrics-list span{font-size:16px;line-height:1.5;overflow-wrap:anywhere;white-space:normal;min-height:26px}
+ .ak-shell .add-line{display:flex;min-height:48px;margin:12px 0 0;gap:8px;font-size:16px;justify-content:center}
+ .ak-shell .add-line .btn-label{position:static;width:auto;height:auto;clip:auto;margin:0;font-size:16px}
+ .ak-shell .add-line svg{width:20px;height:20px}
+ .ak-shell .saved-projects{padding:16px 0}
+ .ak-shell .saved-hint,.ak-shell .saved-empty{font-size:14px;line-height:1.5;color:#555}
+ .ak-shell .saved-card{grid-template-columns:minmax(0,1fr) 48px;border-radius:4px}
+ .ak-shell .saved-open{padding:12px}
+ .ak-shell .saved-open strong{font-size:16px}
+ .ak-shell .saved-open span,.ak-shell .saved-open i{font-size:13px}
+ .ak-shell .saved-delete{min-width:48px;min-height:48px}
+ .ak-shell .saved-delete svg{width:20px;height:20px}
+ .ak-shell.mobile-tool-audio .inspector-text,.ak-shell.mobile-tool-style .inspector-audio{display:none}
+ .ak-shell.mobile-tool-audio .inspector> .panel-title>button[aria-label="Reset text"]{display:none}
+ .ak-shell .inspector label,.ak-shell .inspector-section>span{font-size:14px;color:#444}
+ .ak-shell .inspector input,.ak-shell .inspector select{font-size:16px;min-height:44px}
+ .ak-shell .inspector .field-label{margin-top:16px}
+ .ak-shell .inspector .field-row{gap:12px;margin-top:16px}
+ .ak-shell .segmented button,.ak-shell .alignment button{min-height:44px;font-size:16px}
+ .ak-shell .swatches button{width:44px;height:44px;min-width:44px;min-height:44px}
+ .ak-shell .background-controls input[type=color]{height:44px;min-height:44px}
+ .ak-shell .background-controls input[type=checkbox]{min-height:24px;min-width:24px;margin:0 4px 0 0}
+ .ak-shell .background-controls label:last-child{min-height:44px}
+ .ak-shell .studio-audio-actions{border:0;margin:0;padding:16px 0;gap:10px}
+ .ak-shell .studio-audio-actions button{min-height:48px;font-size:16px}
+ .ak-shell .studio-audio-actions svg{width:20px;height:20px}
+ .ak-shell .mobile-audio-lanes{display:block;padding:8px 0 16px;border-bottom:1px solid var(--line)}
+ .ak-shell .mobile-audio-lanes h3{font-size:16px;font-weight:600;margin:0 0 8px}
+ .ak-shell .mobile-audio-lanes>div{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,44px);min-height:52px;gap:4px;align-items:center}
+ .ak-shell .mobile-audio-lanes span{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .ak-shell .mobile-audio-lanes button{min-width:44px;min-height:44px;border:0;background:#f3f3f1;border-radius:4px;display:grid;place-items:center}
+ .ak-shell .mobile-audio-lanes svg{width:20px;height:20px}
+ .ak-shell .recording-controls{padding-top:16px}
+ .ak-shell .recording-controls button{min-height:48px;font-size:16px;gap:8px}
+ .ak-shell .recording-controls p,.ak-shell .status-card p{font-size:14px;line-height:1.5;color:#555}
+ .ak-shell .recording-controls audio{max-width:100%;width:100%}
+ .ak-shell .status-card strong{font-size:15px}
+}
+
+@media(max-width:360px){
+ .ak-shell .ak-topbar{gap:6px;padding-inline:8px}
+ .ak-shell .ak-wordmark b{display:none}
+ .ak-shell .timeline-toolbar .tempo{display:none}
+}
+@media(max-width:720px) and (max-height:680px){
+ .ak-shell{--mobile-nav-height:56px;grid-template-rows:52px auto minmax(0,1fr) minmax(244px,38dvh) calc(var(--mobile-nav-height) + env(safe-area-inset-bottom))}
+ .ak-shell .ak-topbar{height:52px}
+ .ak-shell .preview-column{grid-template-rows:44px minmax(0,1fr) 48px}
+ .ak-shell .transport{height:48px;padding-block:2px}
+ .ak-shell .mobile-editor-tools button{min-height:48px}
+}
+@media(max-width:1000px) and (max-height:500px) and (orientation:landscape){
+ .ak-shell{--mobile-nav-height:52px;grid-template-columns:minmax(0,44fr) minmax(0,56fr);grid-template-rows:48px auto minmax(0,1fr) calc(var(--mobile-nav-height) + env(safe-area-inset-bottom))}
+ .ak-shell .ak-topbar{height:48px}
+ .ak-shell .header-actions .mobile-source-toggle{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0;border:0;background:transparent}
+ .ak-shell .source-bar{display:none}
+ .ak-shell.mobile-source-open .source-bar,.ak-shell .source-bar.is-progress{display:block}
+ .ak-shell .editor-grid{grid-row:3;grid-column:1;border-right:1px solid var(--line)}
+ .ak-shell .timeline-shell{grid-row:3;grid-column:2;grid-template-rows:44px minmax(0,1fr)}
+ .ak-shell .timeline-toolbar{flex-wrap:nowrap;min-height:44px;overflow-x:auto}
+ .ak-shell .timeline-toolbar>div:first-child{flex:none;overflow:visible}
+ .ak-shell .timeline-toolbar>div:last-child{flex:0 0 180px}
+ .ak-shell .timeline-toolbar .tempo{display:none}
+ .ak-shell .mobile-editor-tools{grid-row:4}
+ .ak-shell .mobile-editor-tools button{flex-direction:row;gap:8px;min-height:44px}
+ .ak-shell .preview-column{grid-template-rows:40px minmax(0,1fr) 48px}
+ .ak-shell .preview-tools{height:40px}
+ .ak-shell .transport{height:48px;padding-block:2px}
+ .ak-shell.mobile-tool-lyrics .lyrics-panel,.ak-shell.mobile-tool-saved .lyrics-panel,.ak-shell.mobile-tool-audio .inspector,.ak-shell.mobile-tool-style .inspector{height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);max-width:560px;left:auto;border-left:1px solid var(--line);border-radius:8px 0 0}
+}

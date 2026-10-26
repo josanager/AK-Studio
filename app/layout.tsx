@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./studio-mobile.css";
 
 export const metadata: Metadata = {
   title: "AK Studio — Karaoke in sync",
