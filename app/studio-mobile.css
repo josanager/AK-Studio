@@ -1,3 +1,11 @@
+/* Playback fills the preview width; the hit area stays larger than its rail. */
+.ak-shell .transport{grid-template-columns:36px 38px minmax(0,1fr) 38px 36px;justify-content:stretch;gap:12px;padding-inline:16px}
+.ak-shell .transport .scrub{background:transparent;height:32px;min-width:0;position:relative;isolation:isolate}
+.ak-shell .transport .scrub::before{content:"";position:absolute;left:0;right:0;top:50%;height:3px;transform:translateY(-50%);background:#b8b8b2;border-radius:2px;z-index:-1}
+.ak-shell .transport .scrub>i{position:absolute;left:0;top:50%;height:3px;transform:translateY(-50%);background:#111;border-radius:2px}
+.ak-shell .transport .scrub>button{top:50%;width:14px;height:14px;min-height:0;transform:translate(-50%,-50%)}
+.ak-shell .transport time{font-size:12px;text-align:center;color:#555}
+.ak-shell .transport>.icon-button{display:grid}
 /* Mobile editing: preview + timeline stay visible; secondary tools open on demand. */
 .mobile-editor-tools,.ak-shell .mobile-panel-close,.mobile-panel-backdrop,.mobile-audio-lanes,.mobile-source-toggle{display:none}
 .studio-audio-actions{display:grid;gap:8px;padding-top:16px;margin-top:16px;border-top:1px solid var(--line)}
@@ -61,7 +69,7 @@
  .ak-shell .transport-main svg{width:22px;height:22px}
  .ak-shell .transport time{font-size:12px;min-width:30px;font-variant-numeric:tabular-nums}
  .ak-shell .transport .scrub{height:44px;flex:1;min-width:40px;touch-action:none}
- .ak-shell .transport .scrub>button{min-height:20px;height:20px;width:20px;top:12px}
+ .ak-shell .transport .scrub>button{min-height:20px;height:20px;width:20px;top:50%}
  .ak-shell .timeline-shell{grid-row:4;grid-column:1;min-height:0;display:grid;grid-template-rows:88px minmax(0,1fr);overflow:hidden}
  .ak-shell .timeline-toolbar{height:auto;min-height:88px;display:flex;align-content:start;flex-wrap:wrap;gap:0 4px;padding:0 8px;border-top:1px solid var(--line)}
  .ak-shell .timeline-toolbar>div:first-child{display:flex;align-items:center;flex:1;min-width:0;height:44px;overflow-x:auto;gap:0;scrollbar-width:none}
