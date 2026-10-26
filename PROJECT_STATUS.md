@@ -703,3 +703,9 @@ Files: `app/studio.tsx`, `app/globals.css`, `PROJECT_STATUS.md`.
 - Replaced the nonfunctional mock preview button on the landing page with a real editor/sign-in link, preserving its appearance.
 - TypeScript and production build passed. Deployed version `f94ffb8c-b9c0-44d0-bacc-93e6ab9efdde`. Browser verified Plans → Studio, editor menu → Profile, settings → Fonts → Plans, plus lyric creation/deletion, undo/redo, aspect ratio, zoom, typeface, alignment, and export menu; no console errors in the isolated editor test. Signed-in home redirects to Studio as designed.
 - Controls that require an audio clip remain intentionally disabled without audio; Active is a subscription status, not an action. This navigation pass did not re-download/separate audio, charge a card, record the microphone, or re-test full export.
+
+## 2026-10-26 — Mobile editor controls
+
+Published responsive editor navigation: preview and timeline stay visible; Lyrics, Audio, Style and Saved open as accessible sheets. Phone controls use 44–48px targets and 16px fields; portrait zoom has a dedicated row. Landscape splits preview/timeline and provides a song-link toggle. Audio tools expose separation, import, recording and track ordering without a context menu. Unselected touch clips allow native panning; selected clips retain dragging/trimming. Desktop layout and cloud processing configuration retained.
+
+Validation: TypeScript, Cloudflare build, audio timeline tests and measured export-size tests passed. Isolated synthetic-audio preview inspected at 390×844, 360×640, 844×390 and 1440×900; playback, zoom and all four sheets exercised. Fixed landscape Export label, desktop close icon and small-screen zoom overflow. Browser connection was lost during final confirmation; no physical iOS/Android gesture test. Deployment cb089a73-f0d3-451b-8ec0-c35617f2f0f6; published stylesheet verified over HTTPS (200). No user project or cloud AI model changed.
