@@ -85,7 +85,8 @@
  .ak-shell .track-canvas{touch-action:pan-x pan-y}
  .ak-shell .time-ruler{touch-action:none;font-size:11px}
  .ak-shell .playhead{touch-action:none}
- .ak-shell .playhead:after{content:"";position:absolute;inset:0 -13px;pointer-events:auto}
+ .ak-shell .playhead:after{content:"";position:absolute;inset:0 auto 0 50%;width:2px;transform:translateX(-50%);background:#111;pointer-events:none}
+ .ak-shell .playhead b{left:50%;transform:translateX(-50%);margin:0}
  .ak-shell .track-heads>div:first-child{grid-template-columns:1fr 44px;padding:0 4px}
  .ak-shell .track-heads>div:first-child button{width:44px;min-width:44px;min-height:44px;padding:0}
  .ak-shell .track-heads .audio-lane-head{display:grid;grid-template-columns:minmax(0,1fr) 44px;grid-template-rows:1fr;padding:0 4px;gap:0}

@@ -6,24 +6,27 @@ export type AudioPeaksResult = {
   duration: number;
 };
 
-export async function computeAudioPeaks(url: string, barCount = 1000): Promise<AudioPeaksResult> {
-  if (!url || typeof window === "undefined") return { peaks: [], duration: 0 };
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Audio fetch failed (${response.status})`);
-  const arrayBuffer = await response.arrayBuffer();
-  const AC =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  const ctx = new AC();
-  try {
-    const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
-    return {
-      peaks: peaksFromAudioBuffer(buffer, barCount),
-      duration: Number.isFinite(buffer.duration) ? buffer.duration : 0,
-    };
-  } finally {
-    void ctx.close().catch(() => undefined);
-  }
+// Keep only small peak arrays, never decoded PCM buffers. Share in-flight work
+// between the preview and timeline and serialize decodes to cap peak mobile RAM.
+const peakCache=new Map<string,Promise<AudioPeaksResult>>();
+let decodeQueue:Promise<unknown>=Promise.resolve();
+export async function computeAudioPeaks(url:string,barCount=1000):Promise<AudioPeaksResult>{
+ if(!url||typeof window==="undefined")return{peaks:[],duration:0};
+ let task=peakCache.get(url);
+ if(!task){
+  task=decodeQueue.catch(()=>undefined).then(async()=>{
+   const response=await fetch(url);if(!response.ok)throw new Error(`Audio fetch failed (${response.status})`);
+   const bytes=await response.arrayBuffer();
+   const AC=window.AudioContext||(window as unknown as {webkitAudioContext:typeof AudioContext}).webkitAudioContext;
+   const ctx=new AC();
+   try{const buffer=await ctx.decodeAudioData(bytes);return{peaks:peaksFromAudioBuffer(buffer,1000),duration:Number.isFinite(buffer.duration)?buffer.duration:0}}
+   finally{await ctx.close().catch(()=>undefined)}
+  });
+  peakCache.set(url,task);decodeQueue=task.catch(()=>undefined);
+  void task.catch(()=>{if(peakCache.get(url)===task)peakCache.delete(url)});
+  if(peakCache.size>8)peakCache.delete(peakCache.keys().next().value!);
+ }
+ const result=await task;return{duration:result.duration,peaks:resamplePeaks(result.peaks,barCount)};
 }
 
 /** Max-abs peaks from an AudioBuffer via getChannelData, normalized to 0–1. */

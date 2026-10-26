@@ -23,11 +23,56 @@ export function useAudioTimeline(backing:string|null,vocal:string|null,backingMu
 export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,onEnded,onError}:{clips:(AudioClip&{muted:boolean})[];time:number;seekRevision?:number;playing:boolean;muted:boolean;onTime:(s:number)=>void;onEnded:()=>void;onError:(message:string)=>void}){
  const elements=useRef(new Map<string,HTMLAudioElement>()),clock=useRef(time),playingRef=useRef(false);
  const pendingPlay=useRef(new Set<string>());
+ const callbacks=useRef({onTime,onEnded,onError});callbacks.current={onTime,onEnded,onError};
  const end=clips.reduce((m,c)=>Math.max(m,c.start+c.duration),0);
- useEffect(()=>{clock.current=time},[seekRevision]);
- useEffect(()=>{if(Math.abs(time-clock.current)>.15||!playingRef.current)clock.current=time},[time]);
- useEffect(()=>{playingRef.current=playing;let frame=0,last=performance.now();function tick(now:number){if(playing)clock.current+=(now-last)/1000;last=now;const t=clock.current;for(const c of clips){const a=elements.current.get(c.id);if(!a)continue;const active=playing&&t>=c.start&&t<c.start+c.duration;a.muted=muted||c.muted;if(active){const local=t-c.start+(c.offset||0);if(a.readyState>=1&&!a.seeking&&Math.abs(a.currentTime-local)>.35)a.currentTime=local;if(a.paused&&!pendingPlay.current.has(c.id)){pendingPlay.current.add(c.id);void a.play().catch(e=>{if(e.name!=='AbortError'&&playingRef.current)onError(e.message||'Audio playback failed.')}).finally(()=>pendingPlay.current.delete(c.id))}}else{a.pause();if(a.readyState>=1&&!a.seeking&&t>=c.start&&t<c.start+c.duration&&Math.abs(a.currentTime-(t-c.start+(c.offset||0)))>.35)a.currentTime=t-c.start+(c.offset||0)}}if(playing){onTime(t);if(t>=end){onEnded();return}}frame=requestAnimationFrame(tick)}frame=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame);elements.current.forEach(a=>a.pause())}},[clips,playing,muted,end]);
- return <>{clips.map(c=><audio hidden key={c.id} src={c.source} preload="auto" playsInline ref={el=>{if(el)elements.current.set(c.id,el);else elements.current.delete(c.id)}}/>)}</>;
+ // Seek only for an explicit user seek. Playback follows the media clock, not render time.
+ useEffect(()=>{clock.current=time;for(const c of clips){const a=elements.current.get(c.id);if(a&&a.readyState>=1)a.currentTime=Math.max(0,Math.min(c.duration,time-c.start))+(c.offset||0)}},[seekRevision]);
+ useEffect(()=>{
+  playingRef.current=playing;
+  let frame=0,last=performance.now(),lastPaint=0,lastSync=0;
+  const started=new Set<string>();
+  function tick(now:number){
+   const elapsed=(now-last)/1000;last=now;
+   let t=clock.current;
+   const master=clips.find(c=>!c.muted&&t>=c.start&&t<c.start+c.duration);
+   const media=master&&elements.current.get(master.id);
+   if(playing){
+    // Waiting/buffering freezes the timeline with the actual audio. Never seek the
+    // master forward to catch a wall clock: that restarts mobile decoders repeatedly.
+    if(master&&media){if(started.has(master.id)&&media.readyState>=1)t=master.start+Math.min(master.duration,Math.max(0,media.currentTime-(master.offset||0)));}
+    else t+=elapsed;
+   }
+   clock.current=t;
+   const syncFollowers=now-lastSync>=1000;
+   for(const c of clips){
+    const a=elements.current.get(c.id);if(!a)continue;
+    a.muted=muted||c.muted;
+    const active=playing&&!c.muted&&t>=c.start&&t<c.start+c.duration;
+    if(active){
+     const local=t-c.start+(c.offset||0);
+     if(!started.has(c.id)){
+      if(a.readyState<1)continue;
+      if(Math.abs(a.currentTime-local)>.05)a.currentTime=local;
+      started.add(c.id);
+     }else if(c!==master&&syncFollowers&&a.readyState>=3&&!a.seeking&&Math.abs(a.currentTime-local)>.5)a.currentTime=local;
+     if(a.paused&&!pendingPlay.current.has(c.id)){
+      pendingPlay.current.add(c.id);
+      void a.play().catch(e=>{if(e.name!=='AbortError'&&playingRef.current)callbacks.current.onError(e.message||'Audio playback failed.')}).finally(()=>pendingPlay.current.delete(c.id));
+     }
+    }else{if(!a.paused)a.pause();started.delete(c.id)}
+   }
+   if(syncFollowers)lastSync=now;
+   if(playing){
+    // Avoid rebuilding the entire editor and waveform DOM at 60–120 fps.
+    if(now-lastPaint>=50){callbacks.current.onTime(t);lastPaint=now}
+    if(t>=end){callbacks.current.onTime(end);callbacks.current.onEnded();return}
+    frame=requestAnimationFrame(tick);
+   }
+  }
+  tick(performance.now());
+  return()=>{cancelAnimationFrame(frame);elements.current.forEach(a=>a.pause())};
+ },[clips,playing,muted,end,seekRevision]);
+ return <>{clips.map(c=><audio hidden key={c.id} src={c.source} preload={c.muted?"metadata":"auto"} playsInline ref={el=>{if(el)elements.current.set(c.id,el);else elements.current.delete(c.id)}}/>)}</>;
 }
 
 export function AudioLaneHeads({lanes,setLanes,locked}:{lanes:AudioLane[];setLanes:React.Dispatch<React.SetStateAction<AudioLane[]>>;locked:boolean}){
