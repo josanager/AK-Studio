@@ -194,3 +194,16 @@
  .ak-shell .transport{height:48px;padding-block:2px}
  .ak-shell.mobile-tool-lyrics .lyrics-panel,.ak-shell.mobile-tool-saved .lyrics-panel,.ak-shell.mobile-tool-audio .inspector,.ak-shell.mobile-tool-style .inspector{height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);max-width:560px;left:auto;border-left:1px solid var(--line);border-radius:8px 0 0}
 }
+
+/* Consistent pill-shaped song link field on desktop and phone. */
+.ak-shell .source-bar .source-bar-content input{
+ border:1px solid var(--line-dark);
+ border-radius:999px;
+ padding-inline:18px;
+ background:#fff;
+}
+.ak-shell .source-bar .source-bar-content input:focus-visible{
+ border-radius:999px;
+ outline:2px solid var(--ink);
+ outline-offset:2px;
+}
