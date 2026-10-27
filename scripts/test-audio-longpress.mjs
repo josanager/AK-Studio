@@ -1,0 +1,11 @@
+import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+const s=fs.readFileSync(new URL('../components/audio-timeline.tsx',import.meta.url),'utf8');const body=s.slice(s.indexOf(' function hold('),s.indexOf(' function drag(',s.indexOf(' function hold('))).replace('e:React.PointerEvent,c:AudioClip','e,c').replace('p:PointerEvent','p');
+let portrait=true,fire,opened=0,stopped=0;const listeners=new Map();const context={locked:false,onLongPress:()=>opened++,cleanup:{current:()=>stopped++},holdCleanup:{current:null},Math,window:{matchMedia:()=>({matches:portrait}),setTimeout:f=>(fire=f,1),clearTimeout:()=>fire=null,addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)}};vm.createContext(context);vm.runInContext(body+';this.hold=hold',context);
+const event={pointerType:'touch',pointerId:1,clientX:40,clientY:60};const clip={kind:'backing'};
+context.hold(event,clip);listeners.get('pointerup')();assert.equal(fire,null);assert.equal(opened,0);
+context.hold(event,clip);listeners.get('pointermove')({...event,clientX:60});assert.equal(fire,null);
+context.hold(event,clip);fire();assert.equal(opened,1);assert.equal(stopped,1);assert.equal(listeners.size,0);
+portrait=false;context.hold(event,clip);assert.equal(fire,null);
+portrait=true;context.hold({...event,pointerType:'mouse'},clip);assert.equal(fire,null);
+context.hold(event,{kind:'recording'});assert.equal(fire,null);
+console.log('PASS: portrait touch hold opens menu; taps, movement, landscape, mouse and recordings do not');
