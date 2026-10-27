@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowUp,ArrowDown,Mic2,Volume2,VolumeX,Trash2} from 'lucide-react';
-import {availableLane,trimAudioClip, type AudioClip,type AudioLane} from '../lib/audio-timeline';
+import {availableLane,trimAudioClip,synchronizationRate, type AudioClip,type AudioLane} from '../lib/audio-timeline';
 import {computeAudioPeaks} from '../lib/audio-peaks';
 
 export function useAudioTimeline(backing:string|null,vocal:string|null,backingMuted:boolean,vocalMuted:boolean){
@@ -25,11 +25,13 @@ export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,on
  const pendingPlay=useRef(new Set<string>());
  const callbacks=useRef({onTime,onEnded,onError});callbacks.current={onTime,onEnded,onError};
  const end=clips.reduce((m,c)=>Math.max(m,c.start+c.duration),0);
+ useEffect(()=>{if(!playing)clock.current=time},[time,playing]);
  // Seek only for an explicit user seek. Playback follows the media clock, not render time.
  useEffect(()=>{clock.current=time;for(const c of clips){const a=elements.current.get(c.id);if(a&&a.readyState>=1)a.currentTime=Math.max(0,Math.min(c.duration,time-c.start))+(c.offset||0)}},[seekRevision]);
  useEffect(()=>{
   playingRef.current=playing;
-  let frame=0,last=performance.now(),lastPaint=0,lastSync=0;
+  let frame=0,last=performance.now(),lastPaint=0;
+  let groupWaiting=true;
   const started=new Set<string>();
   function tick(now:number){
    const elapsed=(now-last)/1000;last=now;
@@ -39,29 +41,58 @@ export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,on
    if(playing){
     // Waiting/buffering freezes the timeline with the actual audio. Never seek the
     // master forward to catch a wall clock: that restarts mobile decoders repeatedly.
-    if(master&&media){if(started.has(master.id)&&media.readyState>=1)t=master.start+Math.min(master.duration,Math.max(0,media.currentTime-(master.offset||0)));}
+    if(master&&media){if(!groupWaiting&&started.has(master.id)&&media.readyState>=1)t=master.start+Math.min(master.duration,Math.max(0,media.currentTime-(master.offset||0)));}
     else t+=elapsed;
    }
    clock.current=t;
-   const syncFollowers=now-lastSync>=1000;
+   const audible=clips.filter(c=>!c.muted&&t>=c.start&&t<c.start+c.duration);
+   // One readiness/seek barrier for the whole audible group. An unmuted or
+   // buffering stem must not enter late while the other stem keeps playing.
+   if(playing&&audible.length){
+    if(audible.some(c=>{const a=elements.current.get(c.id);return !a||a.readyState<3||a.seeking||(started.has(c.id)&&a.paused&&!pendingPlay.current.has(c.id))}))groupWaiting=true;
+    if(!groupWaiting&&audible.some(c=>{const a=elements.current.get(c.id);return a&&Math.abs(a.currentTime-(t-c.start+(c.offset||0)))>.04}))groupWaiting=true;
+    if(groupWaiting){
+     audible.forEach(c=>{const a=elements.current.get(c.id);if(a&&a.readyState>=3&&!a.paused)a.pause()});
+     const ready=audible.every(c=>{const a=elements.current.get(c.id);return a&&a.readyState>=3&&!a.seeking});
+     if(ready){
+      let seeking=false;
+      audible.forEach(c=>{const a=elements.current.get(c.id)!;const target=t-c.start+(c.offset||0);if(Math.abs(a.currentTime-target)>.008){a.currentTime=target;seeking=true}});
+      if(!seeking)groupWaiting=false;
+     }
+    }
+   }
    for(const c of clips){
     const a=elements.current.get(c.id);if(!a)continue;
-    a.muted=muted||c.muted;
+    a.muted=muted||c.muted||groupWaiting;
     const active=playing&&!c.muted&&t>=c.start&&t<c.start+c.duration;
     if(active){
      const local=t-c.start+(c.offset||0);
      if(!started.has(c.id)){
-      if(a.readyState<1)continue;
-      if(Math.abs(a.currentTime-local)>.05)a.currentTime=local;
+      if(a.readyState<3||a.seeking||groupWaiting){
+       // Some mobile browsers do not buffer until play() is requested.
+       // Prime silently; the group remains inaudible until all stems are ready.
+       if(a.readyState<3&&a.paused&&!pendingPlay.current.has(c.id)){
+        pendingPlay.current.add(c.id);void a.play().catch(e=>{if(e.name!=="AbortError"&&playingRef.current)callbacks.current.onError(e.message||"Audio playback failed.")}).finally(()=>pendingPlay.current.delete(c.id));
+       }
+       continue;
+      }
+      if(Math.abs(a.currentTime-local)>.008){a.currentTime=local;groupWaiting=true;continue;}
       started.add(c.id);
-     }else if(c!==master&&syncFollowers&&a.readyState>=3&&!a.seeking&&Math.abs(a.currentTime-local)>.5)a.currentTime=local;
+     }
+     if(groupWaiting){
+      if(a.readyState<3&&a.paused&&!pendingPlay.current.has(c.id)){pendingPlay.current.add(c.id);void a.play().catch(e=>{if(e.name!=="AbortError"&&playingRef.current)callbacks.current.onError(e.message||"Audio playback failed.")}).finally(()=>pendingPlay.current.delete(c.id))}
+      continue;
+     }
+     // Correct small independent media-clock drift smoothly, without re-seeking
+     // either decoder. Larger offsets use the common seek barrier above.
+     const rate=c===master?1:synchronizationRate(a.currentTime-local);
+     if(Math.abs(a.playbackRate-rate)>.0005)a.playbackRate=rate;
      if(a.paused&&!pendingPlay.current.has(c.id)){
       pendingPlay.current.add(c.id);
       void a.play().catch(e=>{if(e.name!=='AbortError'&&playingRef.current)callbacks.current.onError(e.message||'Audio playback failed.')}).finally(()=>pendingPlay.current.delete(c.id));
      }
-    }else{if(!a.paused)a.pause();started.delete(c.id)}
+    }else{if(!a.paused)a.pause();a.playbackRate=1;started.delete(c.id)}
    }
-   if(syncFollowers)lastSync=now;
    if(playing){
     // Avoid rebuilding the entire editor and waveform DOM at 60–120 fps.
     if(now-lastPaint>=50){callbacks.current.onTime(t);lastPaint=now}
@@ -70,7 +101,7 @@ export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,on
    }
   }
   tick(performance.now());
-  return()=>{cancelAnimationFrame(frame);elements.current.forEach(a=>a.pause())};
+  return()=>{cancelAnimationFrame(frame);elements.current.forEach(a=>{a.pause();a.playbackRate=1})};
  },[clips,playing,muted,end,seekRevision]);
  return <>{clips.map(c=><audio hidden key={c.id} src={c.source} preload={c.muted?"metadata":"auto"} playsInline ref={el=>{if(el)elements.current.set(c.id,el);else elements.current.delete(c.id)}}/>)}</>;
 }

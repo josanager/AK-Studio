@@ -3,9 +3,9 @@ const source=fs.readFileSync(new URL('../components/audio-timeline.tsx',import.m
 const component=source.slice(source.indexOf('export function AudioPlayback('),source.indexOf('\nexport function AudioLaneHeads'));
 const js=ts.transpileModule(component,{compilerOptions:{jsx:ts.JsxEmit.React,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const effects=[],refs=[];let nextFrame,now=0,seekCount=0,reported=[];
-const audio={readyState:4,currentTime:0,paused:true,seeking:false,muted:false,play(){this.paused=false;return Promise.resolve()},pause(){this.paused=true}};
+const audio={readyState:4,playbackRate:1,currentTime:0,paused:true,seeking:false,muted:false,play(){this.paused=false;return Promise.resolve()},pause(){this.paused=true}};
 Object.defineProperty(audio,'currentTime',{get(){return this.value||0},set(v){seekCount++;this.value=v}});
-const context={exports:{},useRef(v){const r={current:v};refs.push(r);return r},useEffect(f){effects.push(f)},performance:{now:()=>now},requestAnimationFrame:f=>(nextFrame=f,1),cancelAnimationFrame(){},React:{createElement(){return null},Fragment:Symbol()}};
+const context={exports:{},synchronizationRate:()=>1,useRef(v){const r={current:v};refs.push(r);return r},useEffect(f){effects.push(f)},performance:{now:()=>now},requestAnimationFrame:f=>(nextFrame=f,1),cancelAnimationFrame(){},React:{createElement(){return null},Fragment:Symbol()}};
 vm.runInNewContext(js,context);
 context.exports.AudioPlayback({clips:[{id:'song',start:0,duration:120,offset:0,source:'song',muted:false}],time:0,playing:true,muted:false,onTime:t=>reported.push(t),onEnded(){},onError:e=>{throw Error(e)}});
 refs[0].current.set('song',audio);effects.forEach(f=>f());

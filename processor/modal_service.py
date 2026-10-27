@@ -158,6 +158,10 @@ class SeparatorGPU:
                 paths = {Path(name).stem: Path(name) if Path(name).is_absolute() else root / name for name in names}
                 if set(paths) != {"lead", "backing"}:
                     raise RuntimeError("Incomplete stems")
+                pair_info = [sf.info(paths[stem]) for stem in ("lead", "backing")]
+                if (pair_info[0].frames != pair_info[1].frames
+                        or pair_info[0].samplerate != pair_info[1].samplerate):
+                    raise RuntimeError("Separated tracks do not share a sample timeline")
                 for stem, path in paths.items():
                     info = sf.info(path)
                     if abs(info.duration - duration) > 1 or info.frames <= 0 or path.stat().st_size > 95 * 1024 * 1024:

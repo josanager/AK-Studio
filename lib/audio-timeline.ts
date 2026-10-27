@@ -13,3 +13,6 @@ export function trimAudioClip(c:AudioClip,delta:number,edge:'start'|'end'):Audio
  const change=Math.max(-Math.min(offset,c.start),Math.min(c.duration-.05,delta));
  return {...c,sourceDuration,start:c.start+change,offset:offset+change,duration:c.duration-change};
 }
+
+/** Gently converge independent media clocks; preserve normal speed inside 6ms. */
+export function synchronizationRate(driftSeconds:number){return Math.abs(driftSeconds)<=.006?1:Math.max(.97,Math.min(1.03,1-driftSeconds*.8))}
