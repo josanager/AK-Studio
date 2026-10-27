@@ -35,7 +35,7 @@ os.environ["MODAL_SHARED_SECRET"] = "test-only"
 client = TestClient(service.api.local())
 headers = {"authorization": "Bearer test-only"}
 assert client.get("/health").status_code == 401
-assert client.get("/health", headers=headers).json()["gpu"] == "L4"
+assert client.get("/health", headers=headers).json()["gpu"] == ["L4", "A10", "T4"]
 job, gen = str(uuid.uuid4()), str(uuid.uuid4())
 url = "https://akstudiovocal.com/api/audio/stems/transfer?token=test"
 body = {"jobId": job, "generation": gen, "audioUrl": url, "uploads": {"lead": url, "backing": url}}

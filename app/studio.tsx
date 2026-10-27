@@ -1,4 +1,5 @@
 "use client";
+import {waitForSeparation} from "../lib/separation-client";
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Image from "next/image";
 import {AlignCenter,AlignLeft,AlignRight,Captions,Check,ChevronDown,Download,FolderOpen,Gauge,HelpCircle,Link2,LoaderCircle,Maximize2,Magnet,Mic2,Minus,Music,Pause,Play,Plus,Scissors,Settings2,Trash2,Undo2,Redo2,Volume2,VolumeX,WandSparkles,ZoomIn,ZoomOut,X} from "lucide-react";
@@ -52,7 +53,7 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
  const [seekRevision,setSeekRevision]=useState(0);
  const separationAbortRef=useRef<AbortController|null>(null);
  const [cancellingSeparation,setCancellingSeparation]=useState(false);
- async function cancelSeparation(){if(!audioId||cancellingSeparation)return;setCancellingSeparation(true);setProgressLabel("Cancelling separation…");try{const response=await fetch("/api/audio/separate",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({audioId}),signal:AbortSignal.timeout(25000)});if(!response.ok)throw new Error("The separator could not confirm cancellation. Please retry.");separationAbortRef.current?.abort()}catch(error){setNotice({kind:"error",text:error instanceof Error?error.message:"Could not cancel separation."})}finally{setCancellingSeparation(false)}}
+ async function cancelSeparation(){if(!audioId||cancellingSeparation)return;setCancellingSeparation(true);setProgressLabel("Cancelling separation…");try{const response=await fetch("/api/audio/separate",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({audioId}),signal:AbortSignal.timeout(25000)});if(!response.ok)throw new Error("The separator could not confirm cancellation. Please retry.");separationAbortRef.current?.abort();try{localStorage.removeItem(`ak-separation:${user.email}:${audioId}`)}catch{}}catch(error){setNotice({kind:"error",text:error instanceof Error?error.message:"Could not cancel separation."})}finally{setCancellingSeparation(false)}}
  const exportAbortRef=useRef<AbortController|null>(null);
  useEffect(()=>()=>exportAbortRef.current?.abort(),[]);
  function cancelExport(){exportAbortRef.current?.abort();setProgressLabel("Cancelling export…")}
@@ -127,6 +128,11 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
  }
  async function applyProjectState(state:StudioProjectState,id:string|null){
   skipSaveRef.current=true;
+  const sources=new Map<string,Promise<string>>();
+  const load=(url:string|null|undefined)=>{if(!url)return Promise.resolve(null);if(!sources.has(url))sources.set(url,cachedAudioUrl(url));return sources.get(url)!};
+  const[a,b,v]=await Promise.all([load(state.audioUrl),load(state.backingUrl||state.audioUrl),load(state.vocalUrl)]);
+  await Promise.all([b?computeAudioPeaks(b,1000):null,v?computeAudioPeaks(v,1000):null]).catch(()=>undefined);
+
   setProjectId(id);
   setUrl(state.url||"");
   setTrack(state.track||{title:"",artist:""});
@@ -155,11 +161,7 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
   revokeAudioUrl(audioSrc);
   revokeAudioUrl(backingSrc);
   revokeAudioUrl(vocalSrc);
-  const[a,b,v]=await Promise.all([
-   state.audioUrl?cachedAudioUrl(state.audioUrl):Promise.resolve(null),
-   state.backingUrl?cachedAudioUrl(state.backingUrl):(state.audioUrl?cachedAudioUrl(state.audioUrl):Promise.resolve(null)),
-   state.vocalUrl?cachedAudioUrl(state.vocalUrl):Promise.resolve(null),
-  ]);
+
   setAudioSrc(a);
   setBackingSrc(b);
   setVocalSrc(v);
@@ -262,6 +264,7 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
  async function analyze(e:React.FormEvent){
   e.preventDefault();if(processing||separating||exporting||!isYouTubeLink(url))return;
   setLocalRecording(false);setPlaying(false);setNotice(null);setProcessing(true);setDownloadProgress(0);setProgressLabel("Reading song details…");
+  revokeAudioUrl(audioSrc);revokeAudioUrl(backingSrc);revokeAudioUrl(vocalSrc);
   setAudioSrc(null);setBackingSrc(null);setVocalSrc(null);setBackingPeaks(null);setVocalPeaks(null);setAudioDuration(0);setBpm(null);setLyrics([]);setSelected(-1);
   setTrack({title:"",artist:""});setModel(null);setAudioId(null);setAudioApiUrl(null);setBackingApiUrl(null);setVocalApiUrl(null);
   type Analysis={error?:string;title?:string;artist?:string;duration?:number;lyrics?:ApiLyric[];lyricsSource?:string|null;metadataPending?:boolean;warning?:string|null};
@@ -272,8 +275,7 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
     if([400,401,429].includes(r.status))throw new Error(details.error||"The link could not be analyzed.");
     if(!r.ok)details={metadataPending:true};
     let nextDuration=Math.max(30,details.duration||details.lyrics?.at(-1)?.end||240);
-    setTrack({title:details.title||"New song",artist:details.artist||"YouTube"});setDuration(nextDuration);applyLyrics(details,nextDuration);
-    setAnalyzed(true);setPosition(0);setNotice(null);setDownloadProgress(1);setProgressLabel("Downloading song…");
+    setNotice(null);setDownloadProgress(1);setProgressLabel("Downloading song…");
     const response=await fetch("/api/audio",{method:"POST",headers:{"content-type":"application/json",accept:"application/x-ndjson"},body:JSON.stringify({url})});
     let audio:Record<string,unknown>;
     if((response.headers.get("content-type")||"").includes("ndjson"))audio=await readAudioNdjson(response,n=>setDownloadProgress(p=>Math.max(p||0,n)),event=>{if(typeof event.message==="string")setProgressLabel(typeof event.progress==="number"?`${event.message} ${Math.round(event.progress)}%`:event.message)});
@@ -282,22 +284,27 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
     const original=typeof audio.audioUrl==="string"?audio.audioUrl:null, backing=typeof audio.backingUrl==="string"?audio.backingUrl:original;
     if(!original&&!backing)throw new Error("The downloaded audio could not be opened.");
     const id=typeof audio.id==="string"?audio.id:null;
-    setAudioId(id);setAudioApiUrl(original);setBackingApiUrl(backing);setVocalApiUrl(null);
     const[cachedOriginal,cachedBacking]=await Promise.all([cachedAudioUrl(original||backing!),cachedAudioUrl(backing||original!)]);
-    setAudioSrc(cachedOriginal);setBackingSrc(cachedBacking);setStemMuted({backing:false,vocal:true});
-    setModel(typeof audio.model==="string"?audio.model:"full-mix");
-    if(typeof audio.bpm==="number"&&audio.bpm>0)setBpm(audio.bpm);
-    if(typeof audio.duration==="number"&&audio.duration>0){const actualDuration=audio.duration,ratio=nextDuration/actualDuration;nextDuration=actualDuration;setLyrics(lines=>lines.map(line=>({...line,width:line.width*ratio})));setAudioDuration(actualDuration);setDuration(actualDuration)}
+    if(typeof audio.duration==="number"&&audio.duration>0)nextDuration=audio.duration;
     if(details.metadataPending||(!details.lyrics?.length&&typeof audio.title==="string"&&typeof audio.artist==="string")){
-      if(typeof audio.title==="string")setTrack({title:audio.title,artist:typeof audio.artist==="string"?audio.artist:"YouTube"});
       if(id&&typeof audio.title==="string"&&typeof audio.artist==="string"){
         setProgressLabel("Audio ready · Checking lyrics…");
         try{
           const retry=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({url,audioId:id,title:audio.title,artist:audio.artist,duration:audio.duration})});
-          if(retry.ok){details=await retry.json() as Analysis;setTrack(t=>({...t,title:details.title||t.title,artist:details.artist||t.artist}));applyLyrics(details,Math.max(30,nextDuration))}
+          if(retry.ok)details=await retry.json() as Analysis;
         }catch{/* Optional lyrics lookup must not invalidate downloaded audio. */}
       }
     }
+    setProgressLabel("Loading audio and lyrics…");setDownloadProgress(95);
+    await computeAudioPeaks(cachedBacking,1000);
+    // Commit the prepared song together instead of revealing metadata, lyrics,
+    // empty lanes and waveforms in successive network/decode stages.
+    setTrack({title:details.title||String(audio.title||"New song"),artist:details.artist||String(audio.artist||"YouTube")});
+    setDuration(nextDuration);setAudioDuration(nextDuration);applyLyrics(details,nextDuration);setAnalyzed(true);setPosition(0);
+    setAudioId(id);setAudioApiUrl(original);setBackingApiUrl(backing);setVocalApiUrl(null);
+    setAudioSrc(cachedOriginal);setBackingSrc(cachedBacking);setStemMuted({backing:false,vocal:true});
+    setModel(typeof audio.model==="string"?audio.model:"full-mix");
+    if(typeof audio.bpm==="number"&&audio.bpm>0)setBpm(audio.bpm);
     setDownloadProgress(100);setProgressLabel(null);setNotice({kind:"success",text:details.lyrics?.length?`Ready · audio and lyrics · ${details.lyricsSource||"lyrics"}`:details.warning?.includes("temporarily")?"Audio ready · Lyrics service temporarily unavailable. Try again or add lyrics manually.":"Audio ready · No matching lyrics found. Add lyrics manually."});
   }catch(error){setNotice({kind:"error",text:sanitizeClientError(error instanceof Error?error.message:"The song could not be downloaded.")});setProgressLabel(null)}
   finally{setProcessing(false);setDownloadProgress(null)}
@@ -335,12 +342,21 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
  const stemMenuOpen=Boolean(stemMenu);
  const timelineLocked=stemMenuOpen;
  const hasLeadVocal=Boolean(vocalSrc);
+ useEffect(()=>{
+  const resume=()=>{
+   if(hydrating||!audioId||vocalSrc||separationAbortRef.current||processing||exporting)return;
+   try{const pending=Number(localStorage.getItem(`ak-separation:${user.email}:${audioId}`));if(pending&&Date.now()-pending<86400_000)void separateLeadVocal()}catch{}
+  };
+  resume();const visible=()=>{if(document.visibilityState==="visible")resume()};
+  document.addEventListener("visibilitychange",visible);return()=>document.removeEventListener("visibilitychange",visible);
+ },[hydrating,audioId,vocalSrc,processing,exporting]);
  async function separateLeadVocal(){
   setStemMenu(null);
   if(!audioId){setNotice({kind:"error",text:"Download the song first, then separate the lead vocal."});return}
   if(separating||processing||exporting)return;
   const controller=new AbortController();separationAbortRef.current=controller;
-  setSeparating(true);setNotice(null);setDownloadProgress(2);setProgressLabel("Starting vocal separator…");
+  setSeparating(true);setNotice(null);setDownloadProgress(2);setProgressLabel("Please wait while your audio is processed.");
+  try{localStorage.setItem(`ak-separation:${user.email}:${audioId}`,String(Date.now()))}catch{}
   try{
     const audioResponse=await fetch("/api/audio/separate",{method:"POST",headers:{"content-type":"application/json",accept:"application/x-ndjson"},body:JSON.stringify({audioId,url:url||undefined}),signal:controller.signal});
     if(audioResponse.status===401)throw new Error("Sign in to separate stems.");
@@ -350,25 +366,34 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
     }
     const ctype=audioResponse.headers.get("content-type")||"";
     let audio:Record<string,unknown>;
-    if(ctype.includes("ndjson")){audio=await readAudioNdjson(audioResponse,(n)=>{setDownloadProgress(n);setProgressLabel(`Separating lead vocal… ${Math.max(0,Math.min(100,n))}%`)},event=>{if(typeof event.message==="string")setProgressLabel(typeof event.progress==="number"?`${event.message} ${Math.round(event.progress)}%`:event.message)})}
-    else{audio=await audioResponse.json() as Record<string,unknown>;if(!audioResponse.ok)throw new Error(typeof audio.error==="string"?audio.error:"Vocal separation is temporarily unavailable. Retry or keep using the full mix.");setDownloadProgress(100);setProgressLabel("Separating lead vocal… 100%")}
+    if(ctype.includes("ndjson")){audio=await readAudioNdjson(audioResponse,n=>{setDownloadProgress(Math.min(94,n));setProgressLabel("Please wait while your audio is processed.")})}
+    else{
+      audio=await audioResponse.json() as Record<string,unknown>;
+      if(!audioResponse.ok)throw new Error(typeof audio.error==="string"?audio.error:"Audio processing could not start.");
+      if(audio.status!=="ready")audio=await waitForSeparation(audioId,controller.signal,n=>{setDownloadProgress(n);setProgressLabel("Please wait while your audio is processed.")});
+    }
     if(audio.status==="error")throw new Error(sanitizeClientError(typeof audio.error==="string"?audio.error:"Vocal separation is temporarily unavailable. Retry or keep using the full mix."));
     const backingUrl=typeof audio.backingUrl==="string"?audio.backingUrl:null;
     const vocalUrl=typeof audio.vocalUrl==="string"?audio.vocalUrl:null;
     const audioUrl=typeof audio.audioUrl==="string"?audio.audioUrl:audioApiUrl;
     if(!backingUrl||!vocalUrl)throw new Error("Vocal separation is temporarily unavailable. Retry or keep using the full mix.");
+    setDownloadProgress(95);setProgressLabel("Loading your processed audio…");
+    const[cachedBacking,cachedVocal]=await Promise.all([cachedAudioUrl(backingUrl),cachedAudioUrl(vocalUrl)]);
+    await Promise.all([computeAudioPeaks(cachedBacking,1000),computeAudioPeaks(cachedVocal,1000)]);
+    if(controller.signal.aborted)throw new DOMException("Cancelled","AbortError");
     setAudioApiUrl(audioUrl);setBackingApiUrl(backingUrl);setVocalApiUrl(vocalUrl);
     revokeAudioUrl(backingSrc);revokeAudioUrl(vocalSrc);
-    const[cachedBacking,cachedVocal]=await Promise.all([cachedAudioUrl(backingUrl),cachedAudioUrl(vocalUrl)]);
     setBackingSrc(cachedBacking);setVocalSrc(cachedVocal);
     setStemMuted(s=>({...s,vocal:true,backing:false}));
     setModel(typeof audio.model==="string"?audio.model:"BS-RoFormer");
     if(typeof audio.bpm==="number")setBpm(audio.bpm);
     if(typeof audio.duration==="number"&&audio.duration>0){setAudioDuration(audio.duration);setDuration(d=>Math.max(d,audio.duration as number))}
-    setDownloadProgress(100);setProgressLabel("Separating lead vocal… 100%");
+    try{localStorage.removeItem(`ak-separation:${user.email}:${audioId}`)}catch{}
+    setDownloadProgress(100);setProgressLabel("Your processed audio is ready.");
     window.setTimeout(()=>{setDownloadProgress(null);setProgressLabel(null)},700);
     setNotice({kind:"success",text:"Lead vocal separated · mute controls unlocked"});
   }catch(error){
+    if(error instanceof Error&&/failed|cancelled|expired|missing|invalid|Sign in/i.test(error.message)){try{localStorage.removeItem(`ak-separation:${user.email}:${audioId}`)}catch{}}
     setNotice({kind:"error",text:sanitizeClientError(error instanceof Error?error.message:"Vocal separation is temporarily unavailable. Retry or keep using the full mix.")});
     setProgressLabel(null);
     window.setTimeout(()=>setDownloadProgress(null),2500);

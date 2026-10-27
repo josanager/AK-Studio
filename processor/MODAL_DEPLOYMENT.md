@@ -104,3 +104,13 @@ No hay fallback automático que lance otra separación lenta sin avisar.
 Alcance: solo migración de separación. El navegador sigue mostrando el
 editor, reproduciendo audio y ejecutando la exportación/análisis que ya
 tenía; no se promete cero RAM local ni se ha migrado el renderizador de vídeo.
+
+## 2026-10-27 — Background completion and GPU scheduling
+
+Standalone separation now uses POST to spawn an independent Modal job (202) and authenticated short GET status requests to recover/promote a complete R2 generation. Closing/suspending the browser does not cancel inference. A per-account/audio pending marker restores polling after reopening; visibility restoration wakes polling. Network interruptions retry status checks without starting new inference. The UI says “Please wait while your audio is processed.”, stays below 100 until ready, and preloads both output waveforms before committing the pair. Restored/downloaded song metadata, lyrics and prepared audio are committed together.
+
+GPU allocation accepts L4, A10 or T4 in preference order, with the SAME FP32 checkpoint and parameters, max one container and min zero. This follows Modal's GPU fallback support; availability and per-second price vary by GPU. No workspace budget, spending limit or subscription was changed. Removed two synchronous remote Dict reads per downloaded MiB; cancellation still terminates the native function and generation checks remain before compute/output publication. Manifests now record downloadSeconds.
+
+Real production UI test (187.28-second song): first single-L4 request waited over five minutes in scheduling and was explicitly cancelled. A subsequent completed job took 184.604 server seconds, including 25.126 inference seconds; logs showed ~154 seconds in input preparation/transfer. After removing per-block RPCs, final job took **81.803 server seconds**, **3.629 download seconds**, **56.632 inference seconds**. Different GPU availability/startup makes this a full-path observation, not a controlled inference speed comparison. The browser tab was closed 30 seconds after the final start, and the job reached ready in Modal/R2 while no editor tab was open. Physical Safari/iOS was not used.
+
+Tests: TypeScript and Cloudflare build; test-separation-job.mjs, test-separation-resume.mjs, test-modal-transfer.mjs, test-modal-service.py and existing playback regression checks. Production web version: 4315b4f8-1bd6-4260-8550-4f42cf2dc982; Modal app redeployed with compatible GPU fallbacks and bounded transfer checks.

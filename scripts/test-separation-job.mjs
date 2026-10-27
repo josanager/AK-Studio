@@ -1,0 +1,10 @@
+import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';import ts from 'typescript';import{webcrypto}from'node:crypto';
+const js=ts.transpileModule(fs.readFileSync(new URL('../lib/modal-separator.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+let requests=0,status={status:'queued',progress:100},stored=[];const gen='11111111-1111-4111-8111-111111111111';
+const env={SITE_URL:'https://example.test',MODAL_SEPARATOR_URL:'https://gpu.example.test',MODAL_SHARED_SECRET:'fixture',TEMP_BUCKET:{get:async()=>({size:100,body:'fixture',customMetadata:{userId:'owner',generation:gen}})}};
+const ctx={exports:{},crypto:webcrypto,AbortSignal,Date,Math,Number,Error,setTimeout,fetch:async()=>{requests++;return{ok:true,json:async()=>status}},require:n=>n==='cloudflare:workers'?{env}:n.includes('audio-stems')?{storeStem:async(id,stem)=>{stored.push(stem);return stem}}:{signStemCapability:async()=> 'fixture',stagedStemKey:()=> 'fixture'}};vm.runInNewContext(js,ctx);
+await ctx.exports.startModalSeparation(gen,'owner');assert.equal(requests,1);assert.equal(stored.length,0);
+const queued=await ctx.exports.pollModalSeparation(gen,'owner');assert.equal(queued.progress,88);assert.equal(stored.length,0);
+status={status:'ready',manifest:{generation:gen,duration:187}};const ready=await ctx.exports.pollModalSeparation(gen,'owner');assert.equal(ready.status,'ready');assert.equal(ready.progress,100);assert.deepEqual(stored,['backing','lead']);
+status={status:'error'};await assert.rejects(ctx.exports.pollModalSeparation(gen,'owner'),/failed/);
+console.log('PASS: start returns without polling; detached job resumes; progress stays below 100; complete pair is promoted; failure is terminal');

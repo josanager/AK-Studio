@@ -1,3 +1,4 @@
+import {startModalSeparation,pollModalSeparation} from "../../../../lib/modal-separator";
 import { env } from "cloudflare:workers";
 import { getCurrentUser } from "../../../auth";
 import {
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
   }
 
   if (env.SEPARATOR_PROVIDER === "modal") {
-    return ndjsonResponse(send => processWithGpu({ usageId: audioId, jobId: audioId, userId: user.userId, send, skipOriginal: true }));
+    try{return Response.json(await startModalSeparation(audioId,user.userId),{status:202,headers:{"cache-control":"no-store"}})}catch(e){return Response.json({error:e instanceof Error?e.message:"Audio processing could not start."},{status:502})}
   }
 
   const youtube = sourceURL(body.url || "");
@@ -106,4 +107,11 @@ export async function DELETE(request: Request) {
     if (!response.ok) throw new Error();
     return Response.json({ status: "cancelled" });
   } catch { return Response.json({ error: "The separator could not confirm cancellation. Please retry." }, { status: 502 }); }
+}
+
+export async function GET(request:Request){
+ const user=await getCurrentUser();if(!user)return Response.json({error:"Sign in first."},{status:401});
+ const id=new URL(request.url).searchParams.get("audioId")||"";
+ if(!/^[0-9a-f-]{36}$/i.test(id)||!await findOwnedStem(id,"original",user.userId))return Response.json({error:"Audio not found or expired."},{status:404});
+ try{return Response.json(await pollModalSeparation(id,user.userId),{headers:{"cache-control":"no-store"}})}catch(e){return Response.json({error:e instanceof Error?e.message:"Could not check processing."},{status:502})}
 }

@@ -1,4 +1,4 @@
-"""AK Studio: authenticated job control + serial, scale-to-zero L4 worker.
+"""AK Studio: authenticated job control + serial, scale-to-zero GPU worker.
 
 Audio never lives in a Modal Volume. Read/write capabilities point to R2 via
 Cloudflare and expire after one hour. Dicts contain only job status, not audio.
@@ -88,7 +88,7 @@ class Progress:
         pass
 
 
-@app.cls(image=model_image.add_local_python_source("processor"), gpu="L4", cpu=4,
+@app.cls(image=model_image.add_local_python_source("processor"), gpu=["L4", "A10", "T4"], cpu=4,
          memory=12288, timeout=900, max_containers=1, min_containers=0,
          scaledown_window=60, retries=0)
 class SeparatorGPU:
@@ -118,6 +118,7 @@ class SeparatorGPU:
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 source = root / "original.wav"
+                download_started = time.perf_counter()
                 with requests.get(checked_url(audio_url), headers={"User-Agent": "AK-Studio-Processor/1.0"}, stream=True, timeout=(15, 60), allow_redirects=False) as response:
                     response.raise_for_status()
                     extension = {"audio/flac": ".flac", "audio/ogg": ".ogg", "audio/mpeg": ".mp3",
@@ -126,12 +127,15 @@ class SeparatorGPU:
                     total = 0
                     with source.open("wb") as output:
                         for chunk in response.iter_content(1024 * 1024):
-                            if cancelled(job_id, generation):
-                                return
                             total += len(chunk)
                             if total > 250 * 1024 * 1024:
                                 raise ValueError("Audio too large")
                             output.write(chunk)
+                download_seconds = time.perf_counter() - download_started
+                # Cancellation terminates the native call; validate generation again
+                # before compute, without two synchronous Dict RPCs per MiB downloaded.
+                if cancelled(job_id, generation):
+                    return
                 # ffprobe handles AAC/MP4 originals as well as FLAC/OGG.
                 import json
                 import subprocess
@@ -176,7 +180,8 @@ class SeparatorGPU:
                             time.sleep(2)
                 update(job_id, generation, status="ready", progress=100,
                        manifest={"generation": generation, "duration": duration,
-                                 "separationSeconds": round(separation_seconds, 3)}, message="Separated tracks are ready")
+                                 "separationSeconds": round(separation_seconds, 3),
+                                 "downloadSeconds": round(download_seconds, 3)}, message="Separated tracks are ready")
         except Exception as error:
             # Never print signed transfer URLs, user data or raw request errors.
             print("Separation failed:", type(error).__name__, flush=True)
@@ -234,7 +239,7 @@ def api():
 
     @web.get("/health")
     def health():
-        return {"service": "ak-studio-modal", "gpu": "L4", "model": MODEL, "protocol": 1}
+        return {"service": "ak-studio-modal", "gpu": ["L4", "A10", "T4"], "model": MODEL, "protocol": 1}
 
     @web.post("/process")
     def start(body: dict):
