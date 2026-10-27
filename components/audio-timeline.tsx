@@ -23,6 +23,9 @@ export function useAudioTimeline(backing:string|null,vocal:string|null,backingMu
 export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,onEnded,onError}:{clips:(AudioClip&{muted:boolean})[];time:number;seekRevision?:number;playing:boolean;muted:boolean;onTime:(s:number)=>void;onEnded:()=>void;onError:(message:string)=>void}){
  const elements=useRef(new Map<string,HTMLAudioElement>()),clock=useRef(time),playingRef=useRef(false);
  const pendingPlay=useRef(new Set<string>());
+ const playback=useRef({clips,muted});playback.current={clips,muted};
+ // Mute is an output switch, not a transport edit. Keep decoders and clocks running.
+ const transport=JSON.stringify(clips.map(({id,source,start,duration,offset})=>[id,source,start,duration,offset]));
  const callbacks=useRef({onTime,onEnded,onError});callbacks.current={onTime,onEnded,onError};
  const end=clips.reduce((m,c)=>Math.max(m,c.start+c.duration),0);
  useEffect(()=>{if(!playing)clock.current=time},[time,playing]);
@@ -34,9 +37,10 @@ export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,on
   let groupWaiting=true;
   const started=new Set<string>();
   function tick(now:number){
+   const {clips,muted}=playback.current;
    const elapsed=(now-last)/1000;last=now;
    let t=clock.current;
-   const master=clips.find(c=>!c.muted&&t>=c.start&&t<c.start+c.duration);
+   const master=clips.find(c=>t>=c.start&&t<c.start+c.duration);
    const media=master&&elements.current.get(master.id);
    if(playing){
     // Waiting/buffering freezes the timeline with the actual audio. Never seek the
@@ -45,18 +49,20 @@ export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,on
     else t+=elapsed;
    }
    clock.current=t;
-   const audible=clips.filter(c=>!c.muted&&t>=c.start&&t<c.start+c.duration);
-   // One readiness/seek barrier for the whole audible group. An unmuted or
-   // buffering stem must not enter late while the other stem keeps playing.
-   if(playing&&audible.length){
-    if(audible.some(c=>{const a=elements.current.get(c.id);return !a||a.readyState<3||a.seeking||(started.has(c.id)&&a.paused&&!pendingPlay.current.has(c.id))}))groupWaiting=true;
-    if(!groupWaiting&&audible.some(c=>{const a=elements.current.get(c.id);return a&&Math.abs(a.currentTime-(t-c.start+(c.offset||0)))>.04}))groupWaiting=true;
+   const activeClips=clips.filter(c=>t>=c.start&&t<c.start+c.duration);
+   // Include silent tracks in the transport so unmuting never starts a cold
+   // decoder or changes the master clock. Buffering still waits as one group.
+   if(playing&&activeClips.length){
+    if(activeClips.some(c=>{const a=elements.current.get(c.id);return !a||a.readyState<3||a.seeking||(started.has(c.id)&&a.paused&&!pendingPlay.current.has(c.id))}))groupWaiting=true;
+    // Media clock reads have jitter: small offsets must never interrupt playback.
+    // Reserve a hard seek for a real discontinuity; normal drift uses rate correction.
+    if(!groupWaiting&&activeClips.some(c=>{const a=elements.current.get(c.id);return a&&Math.abs(a.currentTime-(t-c.start+(c.offset||0)))>.25}))groupWaiting=true;
     if(groupWaiting){
-     audible.forEach(c=>{const a=elements.current.get(c.id);if(a&&a.readyState>=3&&!a.paused)a.pause()});
-     const ready=audible.every(c=>{const a=elements.current.get(c.id);return a&&a.readyState>=3&&!a.seeking});
+     activeClips.forEach(c=>{const a=elements.current.get(c.id);if(a&&a.readyState>=3&&!a.paused)a.pause()});
+     const ready=activeClips.every(c=>{const a=elements.current.get(c.id);return a&&a.readyState>=3&&!a.seeking});
      if(ready){
       let seeking=false;
-      audible.forEach(c=>{const a=elements.current.get(c.id)!;const target=t-c.start+(c.offset||0);if(Math.abs(a.currentTime-target)>.008){a.currentTime=target;seeking=true}});
+      activeClips.forEach(c=>{const a=elements.current.get(c.id)!;const target=t-c.start+(c.offset||0);if(Math.abs(a.currentTime-target)>.008){a.currentTime=target;seeking=true}});
       if(!seeking)groupWaiting=false;
      }
     }
@@ -64,7 +70,7 @@ export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,on
    for(const c of clips){
     const a=elements.current.get(c.id);if(!a)continue;
     a.muted=muted||c.muted||groupWaiting;
-    const active=playing&&!c.muted&&t>=c.start&&t<c.start+c.duration;
+    const active=playing&&t>=c.start&&t<c.start+c.duration;
     if(active){
      const local=t-c.start+(c.offset||0);
      if(!started.has(c.id)){
@@ -102,8 +108,8 @@ export function AudioPlayback({clips,time,seekRevision=0,playing,muted,onTime,on
   }
   tick(performance.now());
   return()=>{cancelAnimationFrame(frame);elements.current.forEach(a=>{a.pause();a.playbackRate=1})};
- },[clips,playing,muted,end,seekRevision]);
- return <>{clips.map(c=><audio hidden key={c.id} src={c.source} preload={c.muted?"metadata":"auto"} playsInline ref={el=>{if(el)elements.current.set(c.id,el);else elements.current.delete(c.id)}}/>)}</>;
+ },[transport,playing,end,seekRevision]);
+ return <>{clips.map(c=><audio hidden key={c.id} src={c.source} preload="auto" playsInline ref={el=>{if(el)elements.current.set(c.id,el);else elements.current.delete(c.id)}}/>)}</>;
 }
 
 export function AudioLaneHeads({lanes,setLanes,locked}:{lanes:AudioLane[];setLanes:React.Dispatch<React.SetStateAction<AudioLane[]>>;locked:boolean}){
