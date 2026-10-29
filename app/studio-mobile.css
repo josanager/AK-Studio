@@ -207,3 +207,11 @@
  outline:2px solid var(--ink);
  outline-offset:2px;
 }
+
+.ak-shell .source-bar-content .song-link-field{display:flex;align-items:center;gap:6px;min-width:0;flex:1;border:1px solid var(--line-dark);border-radius:999px;background:#fff;padding:4px;grid-column:1;grid-row:1}
+.ak-shell .source-bar .song-link-field input{flex:1;width:0;min-width:0;border:0;background:transparent;height:30px;padding-inline:14px}
+.ak-shell .song-link-field .source-create{flex:none;border-radius:999px;padding:6px 16px;min-height:30px;background:#168247;color:#fff;border:0;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.ak-shell .song-link-field .source-create:disabled{background:#eeeeeb;color:#999;cursor:default;opacity:1}
+.ak-shell .song-link-field .source-create svg{width:16px;height:16px}
+.ak-shell .song-link-field .source-create .btn-label{position:static;display:inline;width:auto;height:auto;clip:auto;overflow:visible}
+@media(max-width:720px){.ak-shell .source-bar-content{grid-template-columns:minmax(0,1fr)}.ak-shell .song-link-field .source-create{min-height:36px;padding-inline:12px}.ak-shell .source-bar .song-link-field input{height:36px;padding-inline:10px}.ak-shell .source-bar-content>.source-status{grid-column:1}}

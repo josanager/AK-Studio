@@ -24,6 +24,7 @@ import {canExportVideoRoughly,downloadBlob,exportKaraokeVideo,type ExportFps,typ
 type Lyric={text:string;start:number;width:number}; type Track={title:string;artist:string;key?:string|null}; type ApiLyric={text:string;start:number;end:number};
 const formatTime=(seconds:number)=>{const whole=Math.round(seconds);return`${Math.floor(whole/60)}:${String(whole%60).padStart(2,"0")}`};
 const youtubeHosts=new Set(["youtube.com","www.youtube.com","music.youtube.com","youtu.be","m.youtube.com"]);
+function songLinkKey(value:string){try{const u=new URL(value.trim());return u.searchParams.get('v')||u.pathname.replace(/^\/(shorts|embed|live)\//,'').replace(/^\//,'')}catch{return value.trim()}}
 function isYouTubeLink(value:string){const match=value.match(/https?:\/\/[^\s<>"']+/i);if(!match)return false;try{const url=new URL(match[0].replace(/[),.;!?\]}]+$/,""));return youtubeHosts.has(url.hostname.toLowerCase())}catch{return false}}
 async function readAudioNdjson(response:Response,onProgress:(n:number)=>void,onEvent?:(event:Record<string,unknown>)=>void){
  try{return await readAudioEvents(response,event=>{if(typeof event.progress==="number")onProgress(Math.max(0,Math.min(100,Math.round(event.progress))));onEvent?.(event)})}
@@ -51,6 +52,8 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
  const[url,setUrl]=useState("");const[processing,setProcessing]=useState(false);const[analyzed,setAnalyzed]=useState(false);const[notice,setNotice]=useState<{kind:"success"|"error",text:string}|null>(null);const[track,setTrack]=useState<Track>({title:"",artist:""});const[duration,setDuration]=useState(240);const[audioSrc,setAudioSrc]=useState<string|null>(null);const[backingSrc,setBackingSrc]=useState<string|null>(null);const[vocalSrc,setVocalSrc]=useState<string|null>(null);const[bpm,setBpm]=useState<number|null>(null);const[model,setModel]=useState<string|null>(null);const[lyrics,setLyrics]=useState<Lyric[]>([]);const[selected,setSelected]=useState(-1);const[playing,setPlaying]=useState(false);const[position,setPosition]=useState(0);const[muted,setMuted]=useState(false);const[stemMuted,setStemMuted]=useState({backing:false,vocal:true});const[font,setFont]=useState("Avenir Next");const[fontSize,setFontSize]=useState(72);const[lineHeight,setLineHeight]=useState(.94);const[zoom,setZoom]=useState(62);const[aspect,setAspect]=useState<"16:9"|"9:16"|"1:1">("16:9");const[exportQuality,setExportQuality]=useState<ExportQuality>("1080");const[exportFps,setExportFps]=useState<ExportFps>(30);const[qualityOpen,setQualityOpen]=useState(false);const[exporting,setExporting]=useState(false);const[textStyle,setTextStyle]=useState({bold:true,italic:false,underline:false,align:"center" as "left"|"center"|"right",color:"#fff"});const[textPosition,setTextPosition]=useState({x:50,y:50});const[snap,setSnap]=useState({x:false,y:false});const stageRef=useRef<HTMLDivElement>(null);const timelineRef=useRef<HTMLDivElement>(null);const metronomeRef=useRef<AudioContext|null>(null);const mediaRef=useRef<HTMLAudioElement>(null);const vocalRef=useRef<HTMLAudioElement>(null);const scrubbingRef=useRef<{pointerId:number;surface:HTMLElement;target:HTMLElement}|null>(null);const endScrubRef=useRef<(()=>void)|null>(null);const positionRef=useRef(0);const togglePlaybackRef=useRef<()=>void>(()=>{});
  const[backingPeaks,setBackingPeaks]=useState<number[]|null>(null);const[vocalPeaks,setVocalPeaks]=useState<number[]|null>(null);const[audioDuration,setAudioDuration]=useState(0);const[downloadProgress,setDownloadProgress]=useState<number|null>(null);
  const [seekRevision,setSeekRevision]=useState(0);
+ const [createdSong,setCreatedSong]=useState('');
+ const alreadyCreated=Boolean(createdSong&&createdSong===songLinkKey(url));
  const separationAbortRef=useRef<AbortController|null>(null);
  const [cancellingSeparation,setCancellingSeparation]=useState(false);
  async function cancelSeparation(){if(!audioId||cancellingSeparation)return;setCancellingSeparation(true);setProgressLabel("Cancelling separation…");try{const response=await fetch("/api/audio/separate",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({audioId}),signal:AbortSignal.timeout(25000)});if(!response.ok)throw new Error("The separator could not confirm cancellation. Please retry.");separationAbortRef.current?.abort();try{localStorage.removeItem(`ak-separation:${user.email}:${audioId}`)}catch{}}catch(error){setNotice({kind:"error",text:error instanceof Error?error.message:"Could not cancel separation."})}finally{setCancellingSeparation(false)}}
@@ -134,7 +137,7 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
   await Promise.all([b?computeAudioPeaks(b,1000):null,v?computeAudioPeaks(v,1000):null]).catch(()=>undefined);
 
   setProjectId(id);
-  setUrl(state.url||"");
+  setUrl(state.url||"");setCreatedSong(state.audioId?songLinkKey(state.url||""):"");
   setTrack(state.track||{title:"",artist:""});
   setLyrics(state.lyrics||[]);
   setDuration(state.duration||240);setAudioDuration(0);
@@ -262,7 +265,7 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
   setImportingAudio(false);
  }
  async function analyze(e:React.FormEvent){
-  e.preventDefault();if(processing||separating||exporting||!isYouTubeLink(url))return;
+  e.preventDefault();if(processing||separating||exporting||alreadyCreated||!isYouTubeLink(url))return;
   setLocalRecording(false);setPlaying(false);setNotice(null);setProcessing(true);setDownloadProgress(0);setProgressLabel("Reading song details…");
   revokeAudioUrl(audioSrc);revokeAudioUrl(backingSrc);revokeAudioUrl(vocalSrc);
   setAudioSrc(null);setBackingSrc(null);setVocalSrc(null);setBackingPeaks(null);setVocalPeaks(null);setAudioDuration(0);setBpm(null);setLyrics([]);setSelected(-1);
@@ -300,7 +303,7 @@ export default function Studio({user,plan:initialPlan}:{user:{name:string,email:
     // Commit the prepared song together instead of revealing metadata, lyrics,
     // empty lanes and waveforms in successive network/decode stages.
     setTrack({title:details.title||String(audio.title||"New song"),artist:details.artist||String(audio.artist||"YouTube")});
-    setDuration(nextDuration);setAudioDuration(nextDuration);applyLyrics(details,nextDuration);setAnalyzed(true);setPosition(0);
+    setCreatedSong(songLinkKey(url));setDuration(nextDuration);setAudioDuration(nextDuration);applyLyrics(details,nextDuration);setAnalyzed(true);setPosition(0);
     setAudioId(id);setAudioApiUrl(original);setBackingApiUrl(backing);setVocalApiUrl(null);
     setAudioSrc(cachedOriginal);setBackingSrc(cachedBacking);setStemMuted({backing:false,vocal:true});
     setModel(typeof audio.model==="string"?audio.model:"full-mix");
@@ -482,7 +485,7 @@ async function deleteSavedProject(id:string,title:string){const prev=savedProjec
   <div className="source-bar-fill" style={{width: processing || separating || exporting || downloadProgress!==null ? `${Math.max(2, Math.min(100, downloadProgress ?? 2))}%` : "0%"}} aria-hidden="true"/>
   <div className="source-bar-content">
     <Link2/>
-    <input aria-label="YouTube Music link" value={url} onChange={e=>setUrl(e.target.value)} onPaste={e=>{const pasted=e.clipboardData.getData("text").trim();if(!pasted)return;e.preventDefault();setUrl(pasted)}} placeholder={mobile.compact?"Paste a YouTube link":"Paste a YouTube Music link"} disabled={processing || separating || exporting}/>
+    <div className="song-link-field"><input aria-label="YouTube Music link" value={url} onChange={e=>setUrl(e.target.value)} onPaste={e=>{const pasted=e.clipboardData.getData("text").trim();if(!pasted)return;e.preventDefault();setUrl(pasted)}} placeholder={mobile.compact?"Paste a YouTube link":"Paste a YouTube Music link"} disabled={processing || separating || exporting}/><button className="source-create" type="submit" aria-label={processing?"Preparing karaoke":"Create karaoke"} title={processing?"Preparing":"Create karaoke"} disabled={alreadyCreated||hydrating||processing||separating||exporting||!isYouTubeLink(url)}>{processing?<LoaderCircle className="spin"/>:<WandSparkles/>}<span className="btn-label">{processing?"Preparing":mobile.compact?"Create":"Create karaoke"}</span></button></div>
     <span className={`source-status ${notice ? notice.kind : processing || separating || exporting ? "progress" : ""}`}>
       {processing || separating || exporting || downloadProgress!==null
         ? <><LoaderCircle className="spin"/>{
@@ -500,7 +503,7 @@ async function deleteSavedProject(id:string,title:string){const prev=savedProjec
         : null}
     </span>
     {exporting ? <button type="button" aria-label="Cancel export" title="Cancel export" onClick={cancelExport}><X/><span>Cancel export</span></button> : separating ? <button type="button" aria-label="Cancel separation" disabled={cancellingSeparation} onClick={()=>void cancelSeparation()}><X/><span>Cancel</span></button> : plan.canCreate
-      ? <button type="submit" aria-label={processing?"Preparing karaoke":"Create karaoke"} title={processing?"Preparing":"Create karaoke"} disabled={processing||separating||exporting||!isYouTubeLink(url)}>{processing?<LoaderCircle className="spin"/>:<WandSparkles/>}<span className="btn-label">{processing?"Preparing":mobile.compact?"Create":"Create karaoke"}</span></button>
+      ? null
       : <a className="limit-link" href="/account/plans" aria-label="Weekly limit reached · Upgrade">{mobile.compact?"View plans":"Weekly limit reached · Upgrade"}</a>}
   </div>
 </form>
