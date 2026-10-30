@@ -225,3 +225,11 @@
 .ak-shell .source-bar .source-bar-content .source-status:empty{display:none}
 .ak-shell .source-bar .source-status{flex:0 1 auto;max-width:30%}
 @media(max-width:720px){.ak-shell .source-bar .source-bar-content{flex-wrap:wrap;gap:6px}.ak-shell .source-bar .source-status{max-width:100%;flex-basis:100%}}
+
+/* Export belongs to the timeline controls. Open its menu above the toolbar. */
+.ak-shell .timeline-toolbar .export-menu{position:relative;flex:none;margin-left:10px}
+.ak-shell .timeline-toolbar .export-menu .render-button{display:flex;align-items:center;justify-content:center;width:auto;min-width:0;height:34px;min-height:34px;padding:0 12px;gap:6px;border:1px solid #111;background:#111;color:#fff;font-size:12px}
+.ak-shell .timeline-toolbar .export-menu .render-button:hover{background:#333}
+.ak-shell .timeline-toolbar .export-menu-panel{position:absolute;top:auto;bottom:calc(100% + 6px);right:0;left:auto;min-width:210px;width:auto;z-index:70}
+.ak-shell .timeline-toolbar .export-menu-panel button{width:100%;min-width:0;height:auto;min-height:38px;display:flex;justify-content:flex-start;padding:8px 10px;color:#111;font-size:12px}
+@media(max-width:720px){.ak-shell .timeline-toolbar .export-menu .render-button{min-height:44px;height:44px}.ak-shell .timeline-toolbar .export-menu-panel{position:fixed;top:auto;bottom:100px;right:10px;width:min(300px,calc(100vw - 20px))}}
