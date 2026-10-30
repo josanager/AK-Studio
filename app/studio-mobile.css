@@ -215,3 +215,13 @@
 .ak-shell .song-link-field .source-create svg{width:16px;height:16px}
 .ak-shell .song-link-field .source-create .btn-label{position:static;display:inline;width:auto;height:auto;clip:auto;overflow:visible}
 @media(max-width:720px){.ak-shell .source-bar-content{grid-template-columns:minmax(0,1fr)}.ak-shell .song-link-field .source-create{min-height:36px;padding-inline:12px}.ak-shell .source-bar .song-link-field input{height:36px;padding-inline:10px}.ak-shell .source-bar-content>.source-status{grid-column:1}}
+
+/* The link wrapper owns the flexible column; the icon must not share its cell. */
+.ak-shell .source-bar .source-bar-content{display:flex;align-items:center;width:100%;min-width:0;gap:12px}
+.ak-shell .source-bar .source-bar-content>svg{flex:0 0 18px}
+.ak-shell .source-bar .source-bar-content .song-link-field{flex:1 1 0%;width:100%;min-width:0}
+.ak-shell .source-bar .source-bar-content .song-link-field input{flex:1 1 0%;width:0;min-width:0}
+.ak-shell .source-bar .source-bar-content .source-create{margin-left:auto;flex:0 0 auto}
+.ak-shell .source-bar .source-bar-content .source-status:empty{display:none}
+.ak-shell .source-bar .source-status{flex:0 1 auto;max-width:30%}
+@media(max-width:720px){.ak-shell .source-bar .source-bar-content{flex-wrap:wrap;gap:6px}.ak-shell .source-bar .source-status{max-width:100%;flex-basis:100%}}
