@@ -233,3 +233,10 @@
 .ak-shell .timeline-toolbar .export-menu-panel{position:absolute;top:auto;bottom:calc(100% + 6px);right:0;left:auto;min-width:210px;width:auto;z-index:70}
 .ak-shell .timeline-toolbar .export-menu-panel button{width:100%;min-width:0;height:auto;min-height:38px;display:flex;justify-content:flex-start;padding:8px 10px;color:#111;font-size:12px}
 @media(max-width:720px){.ak-shell .timeline-toolbar .export-menu .render-button{min-height:44px;height:44px}.ak-shell .timeline-toolbar .export-menu-panel{position:fixed;top:auto;bottom:100px;right:10px;width:min(300px,calc(100vw - 20px))}}
+
+/* Give the link row equal breathing room above and below its controls. */
+@media (min-width:721px) and (min-height:501px){
+ .ak-shell{grid-template-rows:54px 64px minmax(360px,1fr) 292px}
+ .ak-shell .source-bar{padding-block:8px}
+ .ak-shell .source-bar .source-bar-content{padding-block:0;border:0}
+}
